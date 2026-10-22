@@ -11,7 +11,7 @@ async function main(): Promise<void> {
   const status = document.querySelector<HTMLParagraphElement>("#status");
   if (!status) return;
   const info = await invoke<AppInfo>("app_info");
-  status.textContent = `${info.name} v${info.version}: janela pronta em ${info.startupMs} ms`;
+  status.textContent = `${info.name} v${info.version}: interface pronta em ${info.startupMs} ms`;
 }
 
 main().catch((err) => {
