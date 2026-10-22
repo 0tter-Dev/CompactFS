@@ -1,0 +1,61 @@
+# --- Rust / Cargo (Cargo.lock é commitado: aplicação, não biblioteca) ---
+target/
+**/*.rs.bk
+*.pdb
+
+# --- Node / pnpm / frontend (pnpm-lock.yaml é commitado) ---
+node_modules/
+.pnpm-store/
+dist/
+dist-ssr/
+.vite/
+*.tsbuildinfo
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+
+# --- Tauri ---
+# Schemas são gerados a cada build. gen/android e gen/apple (mobile) DEVEM ser commitados.
+src-tauri/gen/schemas/
+# Saída de bundle/instaladores
+src-tauri/target/
+# Chaves de assinatura do updater/código (nunca commitar)
+*.key
+*.pfx
+*.p12
+*.pem
+.tauri/
+
+# --- Segredos e configuração local ---
+.env
+.env.*
+!.env.example
+
+# --- Testes, cobertura e dados locais ---
+coverage/
+*.log
+# Massa de teste local (mídia, discos simulados, etc.): não versionar arquivos grandes.
+/local-fixtures/
+/scratch/
+
+# --- Sistema operacional ---
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+.Spotlight-V100
+.Trashes
+
+# --- Editores / IDEs ---
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+*~
+
+# --- Claude Code (config local do usuário) ---
+.claude/settings.local.json
+.claude/worktrees/

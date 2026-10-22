@@ -1,0 +1,29 @@
+# Normaliza fim de linha: LF no repositório e no checkout, independente do autocrlf do Windows.
+* text=auto eol=lf
+
+# Scripts do Windows precisam de CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binários: sem conversão de fim de linha e sem diff textual.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.icns binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.zip binary
+*.exe binary
+*.dll binary
+
+# Lockfiles: diff visível na revisão (mudanças de dependência), mas conflitos não são mesclados
+# textualmente; regenerar o lockfile.
+Cargo.lock merge=binary
+pnpm-lock.yaml merge=binary
