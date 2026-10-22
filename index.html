@@ -12,17 +12,24 @@
       <button id="up" type="button" title="Subir um nível (Backspace ou Alt+↑)" aria-label="Subir um nível" disabled>↑</button>
       <button id="refresh" type="button" title="Atualizar (F5)" aria-label="Atualizar">⟳</button>
       <nav id="crumbs" aria-label="Caminho"></nav>
+      <div class="seg" role="group" aria-label="Modo de exibição">
+        <button id="view-grid" type="button" aria-pressed="true" title="Galeria (miniaturas)">▦ Galeria</button>
+        <button id="view-list" type="button" aria-pressed="false" title="Lista (detalhes)">☰ Lista</button>
+      </div>
       <label class="toggle"><input id="show-hidden" type="checkbox" /> Mostrar ocultos</label>
     </header>
 
     <main id="main">
       <section id="computer" aria-label="Este computador" hidden></section>
       <section id="folder" hidden>
-        <div class="columns" aria-hidden="true">
+        <div id="columns" class="columns" aria-hidden="true">
           <span></span><span>Nome</span><span>Modificado</span><span>Tamanho</span>
         </div>
-        <div id="list" tabindex="0" role="listbox" aria-label="Arquivos e pastas">
+        <div id="list" tabindex="0" role="listbox" aria-label="Arquivos e pastas" hidden>
           <div id="sizer"></div>
+        </div>
+        <div id="grid" tabindex="0" role="listbox" aria-label="Arquivos e pastas (galeria)" hidden>
+          <div id="grid-sizer"></div>
         </div>
       </section>
       <section id="message" role="alert" hidden></section>

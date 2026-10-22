@@ -10,7 +10,9 @@ import {
   type Listing,
 } from "./api.ts";
 import { formatCount, formatDate, formatSize, joinPath } from "./format.ts";
-import { moveSelection, scrollTopToReveal, visibleRange, type NavKey } from "./viewport.ts";
+import { Gallery } from "./gallery.ts";
+import { ThumbLoader } from "./thumbs.ts";
+import { moveSelection, scrollTopToReveal, visibleRange, type GridKey, type NavKey } from "./viewport.ts";
 import "./style.css";
 
 const ROW_HEIGHT = 28;
@@ -44,12 +46,47 @@ const els = {
   main: $<HTMLElement>("main"),
   computer: $<HTMLElement>("computer"),
   folder: $<HTMLElement>("folder"),
+  columns: $<HTMLElement>("columns"),
+  viewGrid: $<HTMLButtonElement>("view-grid"),
+  viewList: $<HTMLButtonElement>("view-list"),
   list: $<HTMLElement>("list"),
   sizer: $<HTMLElement>("sizer"),
+  grid: $<HTMLElement>("grid"),
+  gridSizer: $<HTMLElement>("grid-sizer"),
   message: $<HTMLElement>("message"),
   statusMain: $<HTMLElement>("status-main"),
   statusApp: $<HTMLElement>("status-app"),
 };
+
+type ViewMode = "grid" | "list";
+const VIEW_KEY = "cfs.viewMode";
+
+// localStorage pode lançar (janela privada, dados bloqueados): a escolha é só uma conveniência.
+function loadViewMode(): ViewMode {
+  try {
+    return localStorage.getItem(VIEW_KEY) === "list" ? "list" : "grid";
+  } catch {
+    return "grid";
+  }
+}
+
+function saveViewMode(mode: ViewMode): void {
+  try {
+    localStorage.setItem(VIEW_KEY, mode);
+  } catch {
+    // sem persistência: o app continua funcionando
+  }
+}
+
+let viewMode: ViewMode = loadViewMode();
+const loader = new ThumbLoader();
+const gallery = new Gallery(els.grid, els.gridSizer, loader, {
+  onSelect: (index) => setSelected(index, false),
+  onOpen: (index) => {
+    const entry = visible[index];
+    if (entry) void open(entry);
+  },
+});
 
 let current: Location | null = null;
 let listing: Listing | null = null;
@@ -206,6 +243,7 @@ function renderComputer(drives: Drive[]): void {
     grid.append(...sorted.map(driveCard));
   }
   els.computer.replaceChildren(heading, grid);
+  loader.clearPending();
   show("computer");
   listing = null;
   visible = [];
@@ -308,26 +346,67 @@ function updateFolderStatus(): void {
   els.statusMain.textContent = parts.join(" · ");
 }
 
+/** Mostra a lista ou a galeria, conforme o modo escolhido. */
+function applyViewMode(): void {
+  const grid = viewMode === "grid";
+  els.grid.hidden = !grid;
+  els.list.hidden = grid;
+  els.columns.hidden = grid;
+  els.viewGrid.setAttribute("aria-pressed", String(grid));
+  els.viewList.setAttribute("aria-pressed", String(!grid));
+}
+
+function activeScroller(): HTMLElement {
+  return viewMode === "grid" ? els.grid : els.list;
+}
+
+/** (Re)preenche a visão ativa com `visible`, rolando até o item selecionado. */
+function showItems(): void {
+  if (!listing) return;
+  if (viewMode === "grid") {
+    gallery.setItems(visible, listing.path, listing.separator, selected);
+    return;
+  }
+  els.sizer.style.height = `${visible.length * ROW_HEIGHT}px`;
+  els.list.scrollTop = 0;
+  if (selected >= 0) els.list.scrollTop = scrollTopToReveal(selected, ROW_HEIGHT, els.list.clientHeight, 0);
+  renderRows();
+}
+
 function setSelected(index: number, reveal: boolean): void {
   selected = index;
+  if (viewMode === "grid") {
+    gallery.setSelected(index, reveal);
+    return;
+  }
   if (reveal && index >= 0) {
     els.list.scrollTop = scrollTopToReveal(index, ROW_HEIGHT, els.list.clientHeight, els.list.scrollTop);
   }
   renderRows();
 }
 
+function setViewMode(mode: ViewMode): void {
+  if (mode === viewMode) return;
+  viewMode = mode;
+  saveViewMode(mode);
+  applyViewMode();
+  if (listing && !els.folder.hidden) {
+    showItems();
+    activeScroller().focus({ preventScroll: true });
+  }
+}
+
 function renderFolder(next: Listing, selectName: string | null): void {
   listing = next;
   applyFilter();
+  loader.clearPending();
+  applyViewMode();
   show("folder");
-  els.sizer.style.height = `${visible.length * ROW_HEIGHT}px`;
-  els.list.scrollTop = 0;
   const found = selectName === null ? -1 : visible.findIndex((e) => e.name === selectName);
   selected = found >= 0 ? found : visible.length > 0 ? 0 : -1;
-  if (selected >= 0) els.list.scrollTop = scrollTopToReveal(selected, ROW_HEIGHT, els.list.clientHeight, 0);
-  renderRows();
+  showItems();
   updateFolderStatus();
-  els.list.focus({ preventScroll: true });
+  activeScroller().focus({ preventScroll: true });
 }
 
 function showError(err: BrowseError): void {
@@ -457,10 +536,9 @@ els.showHidden.addEventListener("change", () => {
   if (!listing) return;
   const keep = selected >= 0 ? (visible[selected]?.name ?? null) : null;
   applyFilter();
-  els.sizer.style.height = `${visible.length * ROW_HEIGHT}px`;
   const found = keep === null ? -1 : visible.findIndex((e) => e.name === keep);
   selected = found >= 0 ? found : visible.length > 0 ? 0 : -1;
-  renderRows();
+  showItems();
   updateFolderStatus();
 });
 
@@ -482,7 +560,25 @@ els.sizer.addEventListener("dblclick", (e) => {
   if (entry) void open(entry);
 });
 
+els.viewGrid.addEventListener("click", () => setViewMode("grid"));
+els.viewList.addEventListener("click", () => setViewMode("list"));
+
 const NAV_KEYS = new Set<string>(["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"]);
+const GRID_KEYS = new Set<string>([...NAV_KEYS, "ArrowLeft", "ArrowRight"]);
+
+els.grid.addEventListener("keydown", (e) => {
+  if (e.altKey || e.ctrlKey || e.metaKey) return;
+  if (GRID_KEYS.has(e.key)) {
+    e.preventDefault();
+    setSelected(gallery.moveSelection(selected, e.key as GridKey), true);
+  } else if (e.key === "Enter") {
+    const entry = visible[selected];
+    if (entry) {
+      e.preventDefault();
+      void open(entry);
+    }
+  }
+});
 
 els.list.addEventListener("keydown", (e) => {
   if (e.altKey || e.ctrlKey || e.metaKey) return;
@@ -526,4 +622,5 @@ appInfo()
     els.statusApp.textContent = `Erro ao iniciar: ${String(err)}`;
   });
 
+applyViewMode();
 void go({ kind: "computer" });

@@ -366,3 +366,105 @@ span.crumb {
 #status-app {
   flex-shrink: 0;
 }
+
+/* ---------- alternador Galeria / Lista ---------- */
+
+.seg {
+  display: flex;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.seg button {
+  padding: 4px 10px;
+  border: 0;
+  background: var(--bg);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.seg button + button {
+  border-left: 1px solid var(--border);
+}
+
+.seg button[aria-pressed="true"] {
+  background: var(--accent-bg);
+  font-weight: 600;
+}
+
+.seg button:hover:not([aria-pressed="true"]) {
+  background: var(--row-hover);
+}
+
+/* ---------- galeria ---------- */
+
+#grid {
+  position: relative;
+  overflow: auto;
+  min-height: 0;
+}
+
+#grid-sizer {
+  position: relative;
+  width: 100%;
+}
+
+.tile {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 144px;
+  height: 160px;
+  padding: 6px;
+  display: grid;
+  grid-template-rows: 112px auto;
+  gap: 6px;
+  border-radius: 8px;
+  cursor: default;
+  user-select: none;
+  overflow: hidden;
+}
+
+.tile:hover {
+  background: var(--row-hover);
+}
+
+.tile.selected {
+  background: var(--accent-bg);
+}
+
+.tile.dim {
+  opacity: 0.6;
+}
+
+.thumb {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--bg-alt);
+}
+
+.glyph {
+  font-size: 44px;
+  line-height: 1;
+}
+
+.thumb canvas {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.tname {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}

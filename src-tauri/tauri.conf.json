@@ -11,7 +11,7 @@
   },
   "app": {
     "windows": [
-      { "title": "CompactFS", "width": 900, "height": 600 }
+      { "title": "CompactFS", "width": 900, "height": 600, "minWidth": 640, "minHeight": 400 }
     ],
     "security": { "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; style-src 'self'; base-uri 'none'; form-action 'none'" }
   },
