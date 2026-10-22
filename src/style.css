@@ -1,15 +1,368 @@
 :root {
   color-scheme: light dark;
-  font-family: system-ui, sans-serif;
+  --bg: #ffffff;
+  --bg-alt: #f4f5f7;
+  --fg: #1c1e21;
+  --muted: #5f6672;
+  --border: #d8dbe0;
+  --accent: #2060a0;
+  --accent-bg: #dbe8f7;
+  --row-hover: #eef2f8;
+  --danger: #b3261e;
+  font-family: system-ui, "Segoe UI", sans-serif;
+  font-size: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1b1d21;
+    --bg-alt: #24272c;
+    --fg: #e6e8eb;
+    --muted: #9aa1ab;
+    --border: #363a41;
+    --accent: #7fb2ee;
+    --accent-bg: #28405e;
+    --row-hover: #2a2e35;
+    --danger: #f2a49f;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
   margin: 0;
   display: grid;
-  place-items: center;
-  min-height: 100vh;
+  /* minmax(0, 1fr): sem isso a trilha de navegação (nowrap) alarga a página inteira. */
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
 }
 
-main {
+button {
+  font: inherit;
+  color: inherit;
+}
+
+button:focus-visible,
+#list:focus-visible,
+.toggle input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* ---------- barra superior ---------- */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background: var(--bg-alt);
+  border-bottom: 1px solid var(--border);
+}
+
+.toolbar > button {
+  width: 32px;
+  height: 30px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.toolbar > button:hover:not(:disabled) {
+  background: var(--row-hover);
+  border-color: var(--border);
+}
+
+.toolbar > button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+#crumbs {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0 6px;
+  padding: 2px 6px;
+  height: 30px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.crumb {
+  /* Não encolhe: em caminhos longos o começo é cortado, e o fim (pasta atual) fica inteiro. */
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  max-width: 32ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+button.crumb:hover {
+  background: var(--row-hover);
+}
+
+span.crumb {
+  cursor: default;
+  font-weight: 600;
+}
+
+.crumb-sep {
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+/* ---------- Este computador ---------- */
+
+#main {
+  min-height: 0;
+  overflow: hidden;
+}
+
+#computer {
+  height: 100%;
+  overflow: auto;
+  padding: 20px 24px;
+}
+
+#computer h1,
+#message h1 {
+  margin: 0 0 16px;
+  font-size: 18px;
+}
+
+.drives {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.drive {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  text-align: left;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.drive:hover {
+  background: var(--row-hover);
+  border-color: var(--accent);
+}
+
+.drive.not-ready {
+  opacity: 0.7;
+}
+
+.drive-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.drive-body {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.drive-title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drive-sub {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.drive-bar {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.drive-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.empty {
+  color: var(--muted);
+}
+
+/* ---------- pasta ---------- */
+
+#folder {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.columns,
+.row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 150px 100px;
+  align-items: center;
+}
+
+.columns {
+  padding: 4px 12px 4px 0;
+  color: var(--muted);
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-alt);
+}
+
+.columns > span:nth-child(4),
+.size {
+  text-align: right;
+}
+
+#list {
+  position: relative;
+  overflow: auto;
+  min-height: 0;
+}
+
+#sizer {
+  position: relative;
+  width: 100%;
+}
+
+.row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  padding-right: 12px;
+  cursor: default;
+  user-select: none;
+}
+
+.row:hover {
+  background: var(--row-hover);
+}
+
+.row.selected {
+  background: var(--accent-bg);
+}
+
+.row.dim .name,
+.row.dim .icon {
+  opacity: 0.55;
+}
+
+.cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.icon {
   text-align: center;
+}
+
+.date,
+.size {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- mensagem de erro ---------- */
+
+#message {
+  height: 100%;
+  padding: 32px 24px;
+}
+
+#message p {
+  max-width: 60ch;
+  color: var(--danger);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.actions button {
+  padding: 6px 14px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.actions button:hover {
+  border-color: var(--accent);
+}
+
+/* ---------- barra de status ---------- */
+
+.status {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--bg-alt);
+  border-top: 1px solid var(--border);
+}
+
+.status > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#status-app {
+  flex-shrink: 0;
 }

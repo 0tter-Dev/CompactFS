@@ -6,10 +6,33 @@
     <title>CompactFS</title>
   </head>
   <body>
-    <main>
-      <h1>CompactFS</h1>
-      <p id="status">Iniciando…</p>
+    <header class="toolbar">
+      <button id="back" type="button" title="Voltar (Alt+←)" aria-label="Voltar" disabled>←</button>
+      <button id="forward" type="button" title="Avançar (Alt+→)" aria-label="Avançar" disabled>→</button>
+      <button id="up" type="button" title="Subir um nível (Backspace ou Alt+↑)" aria-label="Subir um nível" disabled>↑</button>
+      <button id="refresh" type="button" title="Atualizar (F5)" aria-label="Atualizar">⟳</button>
+      <nav id="crumbs" aria-label="Caminho"></nav>
+      <label class="toggle"><input id="show-hidden" type="checkbox" /> Mostrar ocultos</label>
+    </header>
+
+    <main id="main">
+      <section id="computer" aria-label="Este computador" hidden></section>
+      <section id="folder" hidden>
+        <div class="columns" aria-hidden="true">
+          <span></span><span>Nome</span><span>Modificado</span><span>Tamanho</span>
+        </div>
+        <div id="list" tabindex="0" role="listbox" aria-label="Arquivos e pastas">
+          <div id="sizer"></div>
+        </div>
+      </section>
+      <section id="message" role="alert" hidden></section>
     </main>
+
+    <footer class="status">
+      <span id="status-main">Iniciando…</span>
+      <span id="status-app"></span>
+    </footer>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

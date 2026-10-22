@@ -1,10 +1,15 @@
-use std::time::Instant;
+use std::{path::Path, time::Instant};
 
 use serde::Serialize;
 use tauri::{Builder, Runtime, State};
 
+mod browse;
+mod drives;
 #[cfg(windows)]
 mod webview2;
+
+use browse::{BrowseError, ErrorCode, Listing};
+use drives::Drive;
 
 /// Código de saída quando o app não abre por falta do WebView2 Runtime.
 #[cfg(windows)]
@@ -37,12 +42,34 @@ fn app_info(started_at: State<'_, StartedAt>) -> AppInfo {
     build_info(started_at.0, Instant::now())
 }
 
+/// Discos do computador. Roda fora da thread principal para não travar a interface se um disco demorar.
+#[tauri::command]
+async fn list_drives() -> Vec<Drive> {
+    tauri::async_runtime::spawn_blocking(drives::list_drives)
+        .await
+        .unwrap_or_default()
+}
+
+/// Conteúdo de uma pasta (somente leitura). Roda fora da thread principal: em HD lento a leitura
+/// pode demorar, e a interface não pode congelar.
+#[tauri::command]
+async fn list_dir(path: String) -> Result<Listing, BrowseError> {
+    tauri::async_runtime::spawn_blocking(move || browse::list_dir(Path::new(&path)))
+        .await
+        .map_err(|e| {
+            BrowseError::new(
+                ErrorCode::Other,
+                format!("Falha interna ao listar a pasta: {e}"),
+            )
+        })?
+}
+
 /// Registra o estado e os comandos do app. Separado de `run()` para ser testável com o runtime de mock.
 #[doc(hidden)]
 pub fn configure<R: Runtime>(builder: Builder<R>, started_at: Instant) -> Builder<R> {
     builder
         .manage(StartedAt(started_at))
-        .invoke_handler(tauri::generate_handler![app_info])
+        .invoke_handler(tauri::generate_handler![app_info, list_drives, list_dir])
 }
 
 pub fn run() {
@@ -53,6 +80,7 @@ pub fn run() {
         webview2::show_missing_runtime_message();
         std::process::exit(MISSING_WEBVIEW2_EXIT_CODE);
     }
+    drives::suppress_critical_error_dialogs();
 
     configure(tauri::Builder::default(), started_at)
         .run(tauri::generate_context!())
