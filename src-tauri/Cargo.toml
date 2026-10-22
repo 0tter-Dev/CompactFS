@@ -1,0 +1,26 @@
+[package]
+name = "compactfs"
+version = "0.0.0"
+description = "CompactFS (working title): visualizador leve de arquivos para discos portáteis"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[lib]
+name = "compactfs_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+
+# Prioriza tamanho do executável (meta de leveza do projeto).
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

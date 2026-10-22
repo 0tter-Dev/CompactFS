@@ -4,11 +4,19 @@ App leve e rápido para visualizar (e, em fases posteriores, editar) arquivos em
 
 ## Quick Start
 
-Ainda não há código; nada para rodar.
+Pré-requisitos (Windows): Node.js, pnpm, Rust (versão fixada em `rust-toolchain.toml`, instalada via `rustup`), Visual Studio Build Tools com o workload "Desktop development with C++" e WebView2 (já presente no Windows 11).
+
+```
+pnpm install
+pnpm tauri dev                  # desenvolvimento
+pnpm tauri build --no-bundle    # gera src-tauri/target/release/compactfs.exe
+```
+
+O `compactfs.exe` é um executável único: pode rodar de qualquer pasta, inclusive de dentro de um disco externo. Testes: `cargo test --manifest-path src-tauri/Cargo.toml`.
 
 ## Current Scope
 
-Nada implementado ainda. O escopo planejado para o núcleo inicial é:
+Implementado: apenas o spike de viabilidade (janela Tauri 2 que mostra versão e tempo de inicialização). O escopo planejado para o núcleo inicial é:
 
 - Navegação por pastas com galeria visual (miniaturas e visualização em destaque).
 - Visualizadores básicos: texto/markdown, imagem, PDF, vídeo e áudio simples.
@@ -32,7 +40,15 @@ Fora do escopo por enquanto: sincronização em nuvem, editor profissional (Phot
 
 ## Status
 
-Fase de definição. Próximo passo: spike de viabilidade no Windows (Tauri 2, executável único) para medir tamanho, tempo de abertura e execução de dentro de um disco externo.
+Spike no Windows concluído (etapa 1). Próximo passo: navegação por pastas (etapa 2).
+
+Medições do spike (Windows 11, NTFS, uma máquina, build release):
+
+- Executável: 2,94 MB.
+- Janela pronta: cerca de 270 ms com o perfil do WebView2 já criado; cerca de 1,4 s na primeira execução.
+- Memória: cerca de 340 MB somando o app e os 6 processos do WebView2. A maior parte é do WebView2, não do app, e conta para a meta de leveza.
+
+Não validado ainda: execução a partir de um disco externo (exFAT/NTFS) e em outra máquina (SmartScreen, antivírus).
 
 Em aberto:
 
