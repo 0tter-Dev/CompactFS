@@ -1,0 +1,36 @@
+[package]
+name = "compactfs"
+version = "0.0.0"
+description = "CompactFS (working title): visualizador leve de arquivos para discos portáteis"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[lib]
+name = "compactfs_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+
+# Windows: checagem do runtime do WebView2. Mesmas versões e features que o Tauri já usa (sem crate nova).
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.39"
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_System_Com", "Win32_UI_WindowsAndMessaging"] }
+
+# Só para testes; não entram no executável.
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }
+serde_json = "1"
+
+# Prioriza tamanho do executável (meta de leveza do projeto).
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
