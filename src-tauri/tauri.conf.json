@@ -13,7 +13,7 @@
     "windows": [
       { "title": "CompactFS", "width": 900, "height": 600 }
     ],
-    "security": { "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'" }
+    "security": { "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; style-src 'self'" }
   },
   "bundle": {
     "active": false,
