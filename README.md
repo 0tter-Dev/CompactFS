@@ -38,7 +38,7 @@ Fora do escopo por enquanto: sincronização em nuvem, editor profissional (Phot
 - **Exclusão:** direta, com confirmação clara (sem lixeira própria nem do SO). É irreversível.
 - **Salvamento:** ao editar, grava em arquivo temporário e substitui o original ao final (atômico), para não corromper se o disco for desconectado.
 - **Cache/índice/miniaturas:** local configurável, com padrão no dispositivo, para não poluir nem desgastar o disco. O modo portátil pode guardar cache no próprio disco, sob configuração.
-- **Dados do WebView2:** o WebView2 grava seu perfil no dispositivo, em `%LOCALAPPDATA%\dev.otterdev.compactfs`, inclusive quando o app roda de um disco externo. Isso é aceito: nada é gravado no disco externo, mas a máquina hospedeira guarda esse perfil.
+- **Dados do WebView2:** o WebView2 grava seu perfil (cerca de 10 MB) no dispositivo, em `%LOCALAPPDATA%\dev.otterdev.compactfs`. Isso é aceito: a máquina que roda o app guarda esse perfil. Rodando de uma pasta do disco interno, nada foi criado ao lado do executável; o comportamento a partir de um disco externo ainda não foi validado.
 - **Plugins:** apenas internos, por enquanto, como **módulos compilados e ativáveis** (sem carregamento dinâmico). O núcleo básico deve poder funcionar sozinho, com fronteiras limpas entre módulos; extensões adicionam as funções extras. Extensão dinâmica (ex.: WASM) só será considerada se terceiros entrarem.
 
 ## Status
