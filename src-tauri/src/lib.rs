@@ -5,11 +5,13 @@ use tauri::{Builder, Runtime, State};
 
 mod browse;
 mod drives;
+mod thumbs;
 #[cfg(windows)]
 mod webview2;
 
 use browse::{BrowseError, ErrorCode, Listing};
 use drives::Drive;
+use thumbs::{ThumbError, ThumbErrorCode};
 
 /// Código de saída quando o app não abre por falta do WebView2 Runtime.
 #[cfg(windows)]
@@ -64,12 +66,33 @@ async fn list_dir(path: String) -> Result<Listing, BrowseError> {
         })?
 }
 
+/// Miniatura de um arquivo, em binário: largura e altura (u32 little-endian) e depois o RGBA.
+/// Roda fora da thread principal; a extração é limitada em paralelismo e em tempo (ver `thumbs`).
+#[tauri::command]
+async fn thumbnail(path: String, size: u32) -> Result<tauri::ipc::Response, ThumbError> {
+    let thumb =
+        tauri::async_runtime::spawn_blocking(move || thumbs::thumbnail(Path::new(&path), size))
+            .await
+            .map_err(|e| {
+                ThumbError::new(
+                    ThumbErrorCode::Other,
+                    format!("Falha interna ao gerar a miniatura: {e}"),
+                )
+            })??;
+    Ok(tauri::ipc::Response::new(thumbs::encode(&thumb)))
+}
+
 /// Registra o estado e os comandos do app. Separado de `run()` para ser testável com o runtime de mock.
 #[doc(hidden)]
 pub fn configure<R: Runtime>(builder: Builder<R>, started_at: Instant) -> Builder<R> {
     builder
         .manage(StartedAt(started_at))
-        .invoke_handler(tauri::generate_handler![app_info, list_drives, list_dir])
+        .invoke_handler(tauri::generate_handler![
+            app_info,
+            list_drives,
+            list_dir,
+            thumbnail
+        ])
 }
 
 pub fn run() {
