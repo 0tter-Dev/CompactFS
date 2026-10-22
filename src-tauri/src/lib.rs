@@ -6,6 +6,10 @@ use tauri::{Builder, Runtime, State};
 #[cfg(windows)]
 mod webview2;
 
+/// Código de saída quando o app não abre por falta do WebView2 Runtime.
+#[cfg(windows)]
+const MISSING_WEBVIEW2_EXIT_CODE: i32 = 1;
+
 /// Instante de entrada de `run()` (aproximação do início do processo), base do tempo de inicialização.
 struct StartedAt(Instant);
 
@@ -18,17 +22,19 @@ struct AppInfo {
     startup_ms: u64,
 }
 
-fn build_info(started_at: Instant) -> AppInfo {
+/// `now` é injetado para o cálculo ser determinístico nos testes.
+fn build_info(started_at: Instant, now: Instant) -> AppInfo {
+    let elapsed = now.saturating_duration_since(started_at);
     AppInfo {
         name: "CompactFS",
         version: env!("CARGO_PKG_VERSION"),
-        startup_ms: u64::try_from(started_at.elapsed().as_millis()).unwrap_or(u64::MAX),
+        startup_ms: u64::try_from(elapsed.as_millis()).unwrap_or(u64::MAX),
     }
 }
 
 #[tauri::command]
 fn app_info(started_at: State<'_, StartedAt>) -> AppInfo {
-    build_info(started_at.0)
+    build_info(started_at.0, Instant::now())
 }
 
 /// Registra o estado e os comandos do app. Separado de `run()` para ser testável com o runtime de mock.
@@ -45,7 +51,7 @@ pub fn run() {
     #[cfg(windows)]
     if !webview2::is_runtime_available() {
         webview2::show_missing_runtime_message();
-        return;
+        std::process::exit(MISSING_WEBVIEW2_EXIT_CODE);
     }
 
     configure(tauri::Builder::default(), started_at)
@@ -60,18 +66,30 @@ mod tests {
 
     #[test]
     fn build_info_reports_package_identity() {
-        let info = build_info(Instant::now());
+        let now = Instant::now();
+        let info = build_info(now, now);
         assert_eq!(info.name, "CompactFS");
         assert_eq!(info.version, env!("CARGO_PKG_VERSION"));
     }
 
     #[test]
-    fn build_info_measures_elapsed_time_since_start() {
-        let started_at = Instant::now() - Duration::from_millis(250);
-        let ms = build_info(started_at).startup_ms;
-        assert!(
-            (250..10_250).contains(&ms),
-            "startup_ms fora da faixa: {ms}"
-        );
+    fn build_info_measures_exact_elapsed_milliseconds() {
+        let started_at = Instant::now();
+        let now = started_at + Duration::from_millis(250);
+        assert_eq!(build_info(started_at, now).startup_ms, 250);
+    }
+
+    #[test]
+    fn build_info_truncates_sub_millisecond_remainders() {
+        let started_at = Instant::now();
+        let now = started_at + Duration::from_micros(1_999);
+        assert_eq!(build_info(started_at, now).startup_ms, 1);
+    }
+
+    #[test]
+    fn build_info_never_reports_negative_time_when_clock_order_is_inverted() {
+        let now = Instant::now();
+        let started_at = now + Duration::from_secs(1);
+        assert_eq!(build_info(started_at, now).startup_ms, 0);
     }
 }
