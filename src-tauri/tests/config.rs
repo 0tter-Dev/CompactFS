@@ -49,6 +49,46 @@ fn csp_stays_restrictive() {
 }
 
 #[test]
+fn csp_lets_files_in_only_through_the_asset_protocol() {
+    let csp = csp();
+    // Imagem, mídia e o quadro do PDF só podem vir do protocolo de arquivos do app.
+    for name in ["img-src", "media-src", "frame-src"] {
+        let d = directive(&csp, name).unwrap_or_else(|| panic!("{name} ausente na CSP: {csp}"));
+        assert!(
+            d.contains("asset:") && d.contains("http://asset.localhost"),
+            "{name}: {d}"
+        );
+        for forbidden in [" *", "data:", "blob:", "https:", "http:/", "unsafe"] {
+            // "http://asset.localhost" é o único http permitido.
+            let without_asset = d.replace("http://asset.localhost", "");
+            assert!(
+                !without_asset.contains(forbidden),
+                "{name} permite {forbidden:?}: {d}"
+            );
+        }
+    }
+    // Nenhuma outra diretiva abre a porta para conteúdo externo.
+    assert!(
+        directive(&csp, "script-src").is_none(),
+        "script-src só vem de default-src 'self'"
+    );
+    assert!(
+        directive(&csp, "object-src").is_none(),
+        "object-src só vem de default-src 'self'"
+    );
+}
+
+#[test]
+fn the_asset_protocol_starts_with_an_empty_scope() {
+    let conf: serde_json::Value =
+        serde_json::from_str(include_str!("../tauri.conf.json")).expect("tauri.conf.json válido");
+    let asset = &conf["app"]["security"]["assetProtocol"];
+    assert_eq!(asset["enable"], true);
+    // Escopo vazio: nada é legível até o usuário abrir um arquivo (comando allow_view).
+    assert_eq!(asset["scope"].as_array().map(Vec::len), Some(0), "{asset}");
+}
+
+#[test]
 fn main_window_capability_grants_no_extra_permissions() {
     let cap: serde_json::Value = serde_json::from_str(include_str!("../capabilities/default.json"))
         .expect("capability válida");

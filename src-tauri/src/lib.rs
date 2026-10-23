@@ -1,17 +1,19 @@
 use std::{path::Path, time::Instant};
 
 use serde::Serialize;
-use tauri::{Builder, Runtime, State};
+use tauri::{AppHandle, Builder, Manager, Runtime, State};
 
 mod browse;
 mod drives;
 mod thumbs;
+mod viewer;
 #[cfg(windows)]
 mod webview2;
 
 use browse::{BrowseError, ErrorCode, Listing};
 use drives::Drive;
 use thumbs::{ThumbError, ThumbErrorCode};
+use viewer::{TextContent, ViewError, ViewErrorCode};
 
 /// Código de saída quando o app não abre por falta do WebView2 Runtime.
 #[cfg(windows)]
@@ -82,6 +84,46 @@ async fn thumbnail(path: String, size: u32) -> Result<tauri::ipc::Response, Thum
     Ok(tauri::ipc::Response::new(thumbs::encode(&thumb)))
 }
 
+/// Libera o arquivo para o protocolo de arquivos (`asset:`), que alimenta imagem, vídeo, áudio e PDF.
+/// O escopo começa vazio: só arquivos que o usuário abriu num visualizador ficam acessíveis.
+#[tauri::command]
+fn allow_view<R: Runtime>(app: AppHandle<R>, path: String) -> Result<(), ViewError> {
+    let path = Path::new(&path);
+    viewer::ensure_file(path)?;
+    app.asset_protocol_scope().allow_file(path).map_err(|e| {
+        ViewError::new(
+            ViewErrorCode::Other,
+            format!("Não foi possível liberar o arquivo: {e}"),
+        )
+    })
+}
+
+/// Texto de um arquivo (até 1 MiB), com a codificação detectada. Roda fora da thread principal.
+#[tauri::command]
+async fn read_text(path: String) -> Result<TextContent, ViewError> {
+    tauri::async_runtime::spawn_blocking(move || viewer::read_text(Path::new(&path)))
+        .await
+        .map_err(|e| {
+            ViewError::new(
+                ViewErrorCode::Other,
+                format!("Falha interna ao ler o arquivo: {e}"),
+            )
+        })?
+}
+
+/// Abre o arquivo no app padrão do sistema (nunca programas, scripts, atalhos nem macros).
+#[tauri::command]
+async fn open_default(path: String) -> Result<(), ViewError> {
+    tauri::async_runtime::spawn_blocking(move || viewer::open_default(Path::new(&path)))
+        .await
+        .map_err(|e| {
+            ViewError::new(
+                ViewErrorCode::Other,
+                format!("Falha interna ao abrir o arquivo: {e}"),
+            )
+        })?
+}
+
 /// Registra o estado e os comandos do app. Separado de `run()` para ser testável com o runtime de mock.
 #[doc(hidden)]
 pub fn configure<R: Runtime>(builder: Builder<R>, started_at: Instant) -> Builder<R> {
@@ -91,7 +133,10 @@ pub fn configure<R: Runtime>(builder: Builder<R>, started_at: Instant) -> Builde
             app_info,
             list_drives,
             list_dir,
-            thumbnail
+            thumbnail,
+            allow_view,
+            read_text,
+            open_default
         ])
 }
 
