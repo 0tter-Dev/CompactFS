@@ -468,3 +468,284 @@ span.crumb {
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
+
+/* ---------- visualizador ---------- */
+
+.viewer {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  background: var(--bg);
+  outline: none;
+}
+
+.viewer-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--bg-alt);
+  border-bottom: 1px solid var(--border);
+}
+
+.viewer-bar button {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.viewer-bar button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.viewer-bar button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.viewer-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.viewer-pos {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.viewer-body {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.viewer-note {
+  padding: 4px 12px;
+  min-height: 24px;
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--bg-alt);
+  border-top: 1px solid var(--border);
+}
+
+.viewer-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+
+.viewer-message {
+  padding: 32px 24px;
+}
+
+.viewer-message h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+.viewer-message p {
+  max-width: 60ch;
+  color: var(--danger);
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  touch-action: none;
+  background: var(--bg-alt);
+}
+
+.stage img {
+  max-width: none;
+  user-select: none;
+  cursor: grab;
+  transform-origin: center;
+}
+
+.stage.dragging img {
+  cursor: grabbing;
+}
+
+.media-stage {
+  background: #000;
+}
+
+.player {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.audio-stage {
+  grid-auto-flow: row;
+  align-content: center;
+  gap: 12px;
+}
+
+.audio-icon {
+  font-size: 64px;
+  text-align: center;
+}
+
+.audio-name {
+  text-align: center;
+  max-width: 80%;
+  overflow-wrap: anywhere;
+}
+
+.audio-player {
+  width: min(560px, 90%);
+}
+
+.pdf-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.text-stage {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  outline: none;
+}
+
+.plain-text {
+  margin: 0;
+  padding: 16px 20px;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 4;
+}
+
+.markdown {
+  max-width: 78ch;
+  margin: 0 auto;
+  padding: 20px 24px 48px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.markdown h1,
+.markdown h2 {
+  padding-bottom: 0.25em;
+  border-bottom: 1px solid var(--border);
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  margin: 1.4em 0 0.5em;
+  line-height: 1.25;
+}
+
+.markdown h1:first-child {
+  margin-top: 0;
+}
+
+.markdown p,
+.markdown ul,
+.markdown ol,
+.markdown blockquote,
+.markdown table,
+.markdown pre {
+  margin: 0 0 1em;
+}
+
+.markdown code {
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: var(--bg-alt);
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.markdown .md-code {
+  padding: 12px 14px;
+  overflow-x: auto;
+  border-radius: 6px;
+  background: var(--bg-alt);
+}
+
+.markdown .md-code code {
+  padding: 0;
+  background: none;
+  white-space: pre;
+}
+
+.markdown blockquote {
+  padding: 0 1em;
+  color: var(--muted);
+  border-left: 4px solid var(--border);
+}
+
+.markdown table {
+  border-collapse: collapse;
+  display: block;
+  overflow-x: auto;
+}
+
+.markdown th,
+.markdown td {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+}
+
+.markdown th {
+  background: var(--bg-alt);
+}
+
+.markdown hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 1.5em 0;
+}
+
+.markdown li {
+  margin: 0.2em 0;
+}
+
+.markdown li > ul,
+.markdown li > ol {
+  margin: 0.25em 0 0;
+}
+
+.markdown li > p {
+  margin: 0.4em 0;
+}
+
+.markdown .md-task {
+  list-style: none;
+  margin-left: -1.2em;
+}
+
+.markdown .md-link {
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: default;
+}
+
+.markdown .md-image {
+  color: var(--muted);
+  font-style: italic;
+}

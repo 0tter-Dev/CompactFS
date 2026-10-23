@@ -2,7 +2,9 @@ import {
   appInfo,
   listDir,
   listDrives,
+  openDefault,
   toBrowseError,
+  toViewError,
   type BrowseError,
   type Drive,
   type DriveKind,
@@ -12,6 +14,8 @@ import {
 import { formatCount, formatDate, formatSize, joinPath } from "./format.ts";
 import { Gallery } from "./gallery.ts";
 import { ThumbLoader } from "./thumbs.ts";
+import { Viewer, type ViewerItem } from "./viewer.ts";
+import { viewerKindOf } from "./viewer-kind.ts";
 import { moveSelection, scrollTopToReveal, visibleRange, type GridKey, type NavKey } from "./viewport.ts";
 import "./style.css";
 
@@ -54,6 +58,16 @@ const els = {
   grid: $<HTMLElement>("grid"),
   gridSizer: $<HTMLElement>("grid-sizer"),
   message: $<HTMLElement>("message"),
+  viewer: $<HTMLElement>("viewer"),
+  viewerClose: $<HTMLButtonElement>("viewer-close"),
+  viewerTitle: $<HTMLElement>("viewer-title"),
+  viewerPos: $<HTMLElement>("viewer-pos"),
+  viewerPrev: $<HTMLButtonElement>("viewer-prev"),
+  viewerNext: $<HTMLButtonElement>("viewer-next"),
+  viewerRaw: $<HTMLButtonElement>("viewer-raw"),
+  viewerOpen: $<HTMLButtonElement>("viewer-open"),
+  viewerBody: $<HTMLElement>("viewer-body"),
+  viewerNote: $<HTMLElement>("viewer-note"),
   statusMain: $<HTMLElement>("status-main"),
   statusApp: $<HTMLElement>("status-app"),
 };
@@ -88,6 +102,29 @@ const gallery = new Gallery(els.grid, els.gridSizer, loader, {
   },
 });
 
+const viewer = new Viewer(
+  {
+    root: els.viewer,
+    close: els.viewerClose,
+    title: els.viewerTitle,
+    position: els.viewerPos,
+    prev: els.viewerPrev,
+    next: els.viewerNext,
+    raw: els.viewerRaw,
+    openDefault: els.viewerOpen,
+    body: els.viewerBody,
+    note: els.viewerNote,
+  },
+  {
+    onClose: (index) => {
+      show("folder");
+      if (index >= 0) setSelected(index, true);
+      activeScroller().focus({ preventScroll: true });
+    },
+    onMessage: (text) => flashStatus(text),
+  },
+);
+
 let current: Location | null = null;
 let listing: Listing | null = null;
 let visible: Entry[] = [];
@@ -101,10 +138,14 @@ let tempStatusTimer: number | undefined;
 
 // ---------- utilidades de interface ----------
 
-function show(view: "computer" | "folder" | "message"): void {
+function show(view: "computer" | "folder" | "message" | "viewer"): void {
+  // Qualquer tela que não seja o visualizador o encerra: um vídeo escondido continuaria tocando e
+  // prenderia o arquivo (e o disco não poderia ser ejetado).
+  if (view !== "viewer") viewer.dismiss();
   els.computer.hidden = view !== "computer";
   els.folder.hidden = view !== "folder";
   els.message.hidden = view !== "message";
+  els.viewer.hidden = view !== "viewer";
 }
 
 function setStatus(text: string): void {
@@ -515,12 +556,55 @@ async function refresh(): Promise<void> {
   await load(current, { selectName: keep });
 }
 
+function pathOf(entry: Entry): string {
+  return listing ? joinPath(listing.path, entry.name, listing.separator) : entry.name;
+}
+
+/** Abre o visualizador no arquivo, com a lista dos arquivos visualizáveis da pasta para ir e voltar. */
+function openViewer(entry: Entry): void {
+  const items: ViewerItem[] = [];
+  let pos = -1;
+  visible.forEach((e, index) => {
+    const kind = e.kind === "file" ? viewerKindOf(e.name) : null;
+    if (!kind) return;
+    if (e === entry) pos = items.length;
+    items.push({ path: pathOf(e), name: e.name, kind, index, size: e.size });
+  });
+  if (pos < 0) return;
+  show("viewer");
+  viewer.open(items, pos);
+}
+
+async function openInDefaultApp(entry: Entry): Promise<void> {
+  if (!listing || entry.kind !== "file") return;
+  try {
+    await openDefault(pathOf(entry));
+    flashStatus(`Abrindo ${entry.name} no app padrão…`);
+  } catch (error) {
+    flashStatus(toViewError(error).message);
+  }
+}
+
+/** Ctrl+Enter: abre o arquivo selecionado no app padrão, sem passar pelo visualizador. */
+function openWithDefaultShortcut(e: KeyboardEvent): boolean {
+  if (e.key !== "Enter" || !e.ctrlKey || e.altKey || e.metaKey) return false;
+  const entry = visible[selected];
+  if (entry?.kind === "file") {
+    e.preventDefault();
+    void openInDefaultApp(entry);
+  }
+  return true;
+}
+
 async function open(entry: Entry): Promise<void> {
   if (!listing) return;
   if (entry.kind === "dir") {
-    await go({ kind: "dir", path: joinPath(listing.path, entry.name, listing.separator) });
+    await go({ kind: "dir", path: pathOf(entry) });
+  } else if (entry.kind === "file" && viewerKindOf(entry.name)) {
+    openViewer(entry);
   } else {
-    flashStatus("Abrir e visualizar arquivos ainda não está disponível nesta versão.");
+    // Sem visualizador próprio (Office, TIFF...): o app padrão do sistema abre; programas e scripts, nunca.
+    await openInDefaultApp(entry);
   }
 }
 
@@ -567,7 +651,7 @@ const NAV_KEYS = new Set<string>(["ArrowUp", "ArrowDown", "PageUp", "PageDown", 
 const GRID_KEYS = new Set<string>([...NAV_KEYS, "ArrowLeft", "ArrowRight"]);
 
 els.grid.addEventListener("keydown", (e) => {
-  if (e.altKey || e.ctrlKey || e.metaKey) return;
+  if (openWithDefaultShortcut(e) || e.altKey || e.ctrlKey || e.metaKey) return;
   if (GRID_KEYS.has(e.key)) {
     e.preventDefault();
     setSelected(gallery.moveSelection(selected, e.key as GridKey), true);
@@ -581,7 +665,7 @@ els.grid.addEventListener("keydown", (e) => {
 });
 
 els.list.addEventListener("keydown", (e) => {
-  if (e.altKey || e.ctrlKey || e.metaKey) return;
+  if (openWithDefaultShortcut(e) || e.altKey || e.ctrlKey || e.metaKey) return;
   if (NAV_KEYS.has(e.key)) {
     e.preventDefault();
     const page = Math.max(1, Math.floor(els.list.clientHeight / ROW_HEIGHT) - 1);
@@ -596,6 +680,10 @@ els.list.addEventListener("keydown", (e) => {
 });
 
 document.addEventListener("keydown", (e) => {
+  if (viewer.isOpen) {
+    if (viewer.handleKey(e)) e.preventDefault();
+    return;
+  }
   const typing = e.target instanceof HTMLInputElement && e.target.type === "text";
   if (e.key === "F5") {
     e.preventDefault();

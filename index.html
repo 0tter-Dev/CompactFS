@@ -33,6 +33,19 @@
         </div>
       </section>
       <section id="message" role="alert" hidden></section>
+      <section id="viewer" class="viewer" aria-label="Visualizador" tabindex="-1" hidden>
+        <header class="viewer-bar">
+          <button id="viewer-close" type="button" title="Voltar à pasta (Esc)">← Voltar</button>
+          <span id="viewer-title" class="viewer-title"></span>
+          <span id="viewer-pos" class="viewer-pos"></span>
+          <button id="viewer-prev" type="button" title="Anterior (← ou Page Up)" aria-label="Arquivo anterior">‹</button>
+          <button id="viewer-next" type="button" title="Próximo (→ ou Page Down)" aria-label="Próximo arquivo">›</button>
+          <button id="viewer-raw" type="button" hidden>Ver código-fonte</button>
+          <button id="viewer-open" type="button" title="Abrir no app padrão do sistema">Abrir no app padrão</button>
+        </header>
+        <div id="viewer-body" class="viewer-body"></div>
+        <footer id="viewer-note" class="viewer-note" aria-live="polite"></footer>
+      </section>
     </main>
 
     <footer class="status">
