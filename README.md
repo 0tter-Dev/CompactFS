@@ -27,14 +27,14 @@ Implementado (somente leitura, Windows):
 - Barra de status com a versão, o tempo até a interface ficar pronta e o tempo de cada listagem.
 - **Galeria visual** (modo padrão, alternável com **Lista**; a escolha fica guardada): miniaturas reais de imagens, vídeos e PDFs, em grade virtualizada com navegação por teclado em duas dimensões. As miniaturas vêm do próprio Windows, são pedidas só para o que está na tela (rolar rápido quase não gera pedidos) e arquivos sem miniatura mostram um ícone. A janela tem largura mínima de 640 px.
 
-Ainda não existe abrir ou visualizar arquivos (etapa 4). O escopo planejado para o núcleo inicial, além do que já está acima, é:
+- **Visualizadores** (Enter ou duplo clique num arquivo; ←/→ ou Page Up/Page Down trocam de arquivo, Esc volta e devolve a seleção): **imagem** com ajuste à janela, zoom (roda do mouse, `+`, `-`, `0` ajusta, `1` a 100%, duplo clique) e arrasto; **vídeo** e **áudio** com os controles do navegador (reproduzir, avançar no tempo, volume); **PDF** pelo visualizador nativo do WebView2 (zoom, páginas, busca); **texto** (UTF-8, UTF-16 e ANSI/Windows-1252 detectados; só o primeiro 1 MiB de arquivos grandes, com aviso; arquivo binário é recusado com mensagem clara); **markdown** formatado (títulos, listas, tarefas, tabelas, código, citações) com botão para ver o código-fonte. Fechar o visualizador solta o arquivo, mesmo com um vídeo tocando.
+- **Abrir no app padrão** do Windows (Ctrl+Enter, botão do visualizador, ou Enter num arquivo sem visualizador, como Office ou TIFF). Programas, scripts, atalhos, instaladores e documentos com macros nunca são abertos pelo app.
 
-- Visualizadores básicos: texto/markdown, imagem, PDF, vídeo e áudio simples (visualização em destaque).
-- Busca por nome.
+O escopo planejado que ainda falta no núcleo inicial é a **busca por nome**.
 
 Plataformas-alvo: Windows, Android e iOS. A **fase 1 é só Windows**, com um executável único que serve instalado ou rodando de dentro do disco. O mobile (sempre instalado, pois Android e iOS não executam apps de um disco) vem na fase 2, depois de um protótipo curto de acesso a discos externos. O app também pode funcionar em discos internos e pastas do dispositivo.
 
-Formatos: o núcleo cobre apenas o que a WebView e o pdf.js reproduzem nativamente. Office e codecs raros ficam como plugin ou "abrir no app padrão"; embutir ffmpeg só se o custo em tamanho for aceito depois.
+Formatos: o núcleo cobre apenas o que o WebView2 reproduz nativamente (por isso **não há pdf.js** na fase 1: o PDF usa o visualizador do próprio WebView2, sem peso novo). Office e codecs raros ficam como plugin ou "abrir no app padrão"; embutir ffmpeg só se o custo em tamanho for aceito depois. O Android não tem visualizador de PDF no WebView: na fase 2 será preciso o pdf.js ou outra solução.
 
 Fora do núcleo inicial (plugin ou fase posterior): gerenciamento de arquivos, edição de conteúdo, metadados e organização (tags, notas, EXIF), limpeza e manutenção (duplicados, comparação entre discos). Documentos Office: cobertura a avaliar caso a caso.
 
@@ -43,7 +43,10 @@ Fora do escopo por enquanto: sincronização em nuvem, editor profissional (Phot
 ## Regras do Produto
 
 - **Prioridade central:** leve, simples, rápido e intuitivo. Qualquer funcionalidade que comprometa isso fica fora do núcleo.
-- **Somente leitura (por enquanto):** a navegação não cria, altera nem apaga nada no disco. Nomes de arquivo são dados não confiáveis e sempre exibidos como texto, nunca interpretados como HTML.
+- **Somente leitura (por enquanto):** a navegação e os visualizadores não criam, alteram nem apagam nada no disco. Nomes de arquivo e conteúdo de arquivos são dados não confiáveis e sempre exibidos como texto, nunca interpretados como HTML. (A barra do visualizador de PDF do WebView2 tem "Salvar" e "Imprimir": são ações explícitas do usuário, fora do controle do app.)
+- **Acesso do visualizador aos arquivos:** o protocolo de arquivos do app começa **sem acesso a nada**; abrir um arquivo num visualizador libera só aquele arquivo (e ele fica liberado até o app fechar). A política de conteúdo só deixa imagem, mídia e o quadro do PDF virem desse protocolo: nada de endereços externos, `data:` ou `blob:`.
+- **Markdown:** vira uma árvore de dados e é desenhado só com texto; HTML embutido aparece como texto literal. Links e imagens do documento **nunca** são ativados (o link mostra o endereço ao passar o mouse, e a imagem vira o texto alternativo), então um arquivo não consegue levar o app a outro endereço nem carregar conteúdo remoto.
+- **Abrir no app padrão:** sem confirmação, como um duplo clique no Explorer, **exceto** programas, bibliotecas, scripts, atalhos, instaladores, arquivos de configuração que disparam ações e documentos do Office com macros ou add-ins (lista no código). O nome é normalizado antes de olhar a extensão (ponto ou espaço no fim, fluxos alternativos do NTFS) e arquivos sem extensão também são recusados. Limitação conhecida: documentos antigos (`.doc`, `.xls`, `.ppt`) podem conter macros e são abertos; o Office pergunta antes de executá-las.
 - **Disco que some:** se um disco for desconectado com uma pasta aberta, a próxima listagem ou atualização mostra uma mensagem clara em vez de travar. O app ainda não detecta a remoção sozinho.
 - **Exclusão:** direta, com confirmação clara (sem lixeira própria nem do SO). É irreversível.
 - **Salvamento:** ao editar, grava em arquivo temporário e substitui o original ao final (atômico), para não corromper se o disco for desconectado.
@@ -54,20 +57,24 @@ Fora do escopo por enquanto: sincronização em nuvem, editor profissional (Phot
 
 ## Status
 
-Etapas 1 (spike no Windows), 2 (navegação por pastas) e 3 (galeria com miniaturas) concluídas, **com a validação em disco externo e em HD mecânico pendente**. Próximo passo: visualizadores básicos (etapa 4).
+Etapas 1 (spike no Windows), 2 (navegação por pastas), 3 (galeria com miniaturas) e 4 (visualizadores básicos) concluídas, **com a validação em disco externo e em HD mecânico pendente**. Próximo passo: busca por nome (etapa 5).
 
 Medições (Windows 11, uma máquina, disco SSD SATA formatado em NTFS, build release; "MiB" = 1024² bytes):
 
-- Executável: 2,96 MiB (3.108.864 bytes); a navegação acrescentou cerca de 39 KB aos 3.045.888 bytes do spike, e as miniaturas, cerca de 23 KB.
+- Executável: 3,06 MiB (3.205.120 bytes); a navegação acrescentou cerca de 39 KB aos 3.045.888 bytes do spike, as miniaturas cerca de 23 KB e os visualizadores cerca de 94 KB (protocolo de arquivos, a crate `http-range` e o código dos visualizadores e do markdown). O JavaScript entregue tem 38,9 kB (13,9 kB comprimido).
+- Visualizadores: um texto abre em cerca de 30 ms e o primeiro 1 MiB de um log de 2 MB em cerca de 80 ms; uma foto de 4000x3000 (12 megapixels) termina de carregar em cerca de 25 ms (a decodificação vem logo depois, e o "Carregando…" fica na tela até a imagem estar pronta para pintar); um vídeo MP4 (H.264) e um áudio M4A (AAC) tocam e permitem avançar no tempo.
+- Memória com uma foto de 12 megapixels aberta no visualizador: cerca de 515 MB de working set e 320 MB de memória privada, contra 355 MB e 170 MB na lista parada. A decodificação da foto grande e o WebView2 explicam a diferença; é o ponto mais pesado até agora.
 - Galeria, numa pasta com 410 itens (400 JPEGs de 1600x1200, três fotos de 24 megapixels e outros formatos): primeira miniatura em cerca de 140 a 160 ms e a primeira tela inteira (18 miniaturas) pouco depois; atravessar os 410 itens rolando rápido gerou só 29 pedidos de miniatura; reabrir uma pasta já vista não faz pedido nenhum. Uma pasta com 50.000 arquivos abre em galeria em cerca de 160 ms.
 - Memória com a galeria cheia (depois de rolar os 410 itens): cerca de 475 MB de working set e 305 MB de memória privada, contra 355 MB e 170 MB na lista parada. O custo extra vem das miniaturas em memória (até 240) e do WebView2; vale reduzir o limite de cache se a meta de leveza apertar.
 - Interface pronta (da entrada de `run()` até a interface chamar o comando): cerca de 270 a 300 ms com o perfil do WebView2 já criado, com outliers ocasionais acima de 700 ms; cerca de 1,2 a 1,4 s no primeiro lançamento de um executável recém-copiado (provável verificação do antivírus).
 - Pasta com 50.000 arquivos: listada e ordenada no núcleo em cerca de 90 a 120 ms (150 a 190 ms no total, e cerca de 170 ms do clique até a lista na tela), com apenas 24 linhas no DOM.
 - Memória, somando só o app e os processos do WebView2 que ele criou (7 processos): cerca de 355 MB de working set e 165 MB de memória privada parado; cerca de 410 MB e 230 MB com os 50.000 itens na tela. A maior parte é do WebView2, não do app, e conta para a meta de leveza.
 
-Testes: 49 no núcleo (listagem, ordenação, erros, discos, miniaturas com cores, transparência e orientação conferidas, contrato IPC, configuração de segurança), 41 na lógica da interface (lista, grade, fila e cache de miniaturas) e dois testes de ponta a ponta manuais (31 verificações na lista e 27 na galeria, dirigindo o executável de verdade) que não estão na CI. As mutações aplicadas ao código novo morrem pelos testes, exceto o contador de itens ilegíveis e o caminho de "disco sem mídia", que não dá para exercitar sem hardware ou permissões específicas.
+Testes: 72 no núcleo (listagem, ordenação, erros, discos, miniaturas, leitura de texto e detecção de codificação, bloqueio de executáveis, escopo do protocolo de arquivos, contrato IPC, configuração de segurança), 86 na lógica da interface (lista, grade, fila e cache de miniaturas, tipos, zoom e o parser de markdown, inclusive contra entradas hostis) e três testes de ponta a ponta manuais (31 verificações na lista, 27 na galeria e 61 nos visualizadores, dirigindo o executável de verdade) que não estão na CI. As mutações aplicadas ao código novo morrem pelos testes, exceto o contador de itens ilegíveis, o caminho de "disco sem mídia" e a abertura real de programas (que nunca é exercitada de propósito), que não dá para testar com segurança ou sem hardware específico.
 
-Não validado ainda: **miniaturas de vídeo** (não havia nenhum vídeo nem `ffmpeg` nesta máquina) e formatos que dependem de codec instalado (HEIC, RAW); **PDF**, que nesta máquina **não gerou miniatura** porque o Windows daqui não tem tratador de PDF (o resultado depende do que cada computador tem instalado); HD mecânico (só havia SSDs; ler e gerar miniaturas de pastas grandes pode ser bem mais lento), execução a partir de um disco externo real (exFAT/NTFS) e em outra máquina (SmartScreen, antivírus), remoção física de um disco com a pasta aberta, unidades de rede, caminhos com mais de 260 caracteres, uso com leitor de tela e um extrator de miniatura do Windows que trave (cada pedido tem limite de 10 s, mas a thread presa fica para trás).
+Os testes de ponta a ponta dos visualizadores cobrem: o escopo do protocolo de arquivos (arquivo não aberto é recusado e abrir um não libera os vizinhos), a CSP, textos em três codificações, markdown rico e hostil (nenhum `<script>`, `<a>`, `<img>` nem atributo `on*`, e nenhuma requisição externa), imagem com zoom e arrasto, o PDF do WebView2, vídeo e áudio reais gerados no próprio WebView, a liberação do arquivo ao fechar (renomear durante e depois da reprodução), o bloqueio de `.exe` e `.docm`, e o Ctrl+Enter abrindo o app padrão do Windows de verdade.
+
+Não validado ainda: **miniaturas de vídeo em outros formatos** além de MP4 e vídeo em MKV, HEVC e AVI (o app mostra uma mensagem e oferece o app padrão se o WebView2 não tocar); HEIC e RAW (dependem de codec instalado); **PDF**, que nesta máquina **não gerou miniatura** na galeria porque o Windows daqui não tem tratador de PDF (o visualizador, esse sim, funciona); reprodução de vídeo e avanço no tempo num disco externo lento; HD mecânico (só havia SSDs; ler e gerar miniaturas de pastas grandes pode ser bem mais lento), execução a partir de um disco externo real (exFAT/NTFS) e em outra máquina (SmartScreen, antivírus), remoção física de um disco com a pasta aberta, unidades de rede, caminhos com mais de 260 caracteres, uso com leitor de tela e um extrator de miniatura do Windows que trave (cada pedido tem limite de 10 s, mas a thread presa fica para trás).
 
 Em aberto:
 
@@ -79,11 +86,11 @@ Em aberto:
 
 Fase 1 (Windows): **Tauri 2** (núcleo em Rust 1.99.1, fixado em `rust-toolchain.toml`; interface em TypeScript 7 + Vite 8, sem framework) com **pnpm** 11. A viabilidade do Tauri no mobile (fase 2) segue a validar. O `crate-type` mobile e as features padrão do Tauri ficam mantidos na fase 1.
 
-Dependências diretas e impacto (executável final de 2,96 MiB). A navegação e a galeria não adicionaram nenhuma dependência ao executável nem ao pacote JavaScript; o `Cargo.lock` ganhou 4 pacotes na etapa 2 (`tempfile` e o que ela puxa: `errno`, `rustix` e `linux-raw-sys`), todos só de desenvolvimento e fora do grafo normal e de build, e nenhum na etapa 3:
+Dependências diretas e impacto (executável final de 3,06 MiB). A navegação e a galeria não adicionaram nenhuma dependência ao executável nem ao pacote JavaScript; o `Cargo.lock` ganhou 4 pacotes na etapa 2 (`tempfile` e o que ela puxa: `errno`, `rustix` e `linux-raw-sys`), todos só de desenvolvimento e fora do grafo normal e de build, e nenhum na etapa 3. **A etapa 4 adicionou uma crate ao executável: `http-range`** (pequena), puxada pela feature `protocol-asset` do Tauri, necessária para o vídeo e o áudio permitirem avançar no tempo. O markdown e o PDF não adicionaram dependência (parser próprio e visualizador nativo do WebView2):
 
 | Dependência | Uso | Impacto |
 | --- | --- | --- |
-| `tauri` 2 | Janela, WebView2 e IPC | Quase todo o peso do executável |
+| `tauri` 2 (feature `protocol-asset`) | Janela, WebView2, IPC e o protocolo de arquivos dos visualizadores | Quase todo o peso do executável; a feature acrescentou a crate `http-range` e, com o código dos visualizadores, cerca de 94 KB |
 | `serde` | Serializar a resposta do comando | Já era transitiva; peso zero |
 | `webview2-com`, `windows` (só Windows) | Checar o WebView2, mostrar a mensagem em português, listar os discos e obter as miniaturas do sistema | Mesmas versões que o Tauri já usa; sem crate nova. Features acrescentadas: `Win32_Storage_FileSystem` e `Win32_System_Diagnostics_Debug` (discos) e `Win32_UI_Shell` e `Win32_Graphics_Gdi` (miniaturas), todas já ativadas pelo Tauri |
 | `@tauri-apps/api` | Chamar comandos do núcleo | Cerca de 1 kB no JavaScript entregue |
