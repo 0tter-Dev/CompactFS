@@ -181,7 +181,7 @@ fn is_hidden(name: &str, _meta: &fs::Metadata) -> bool {
     name.starts_with('.')
 }
 
-fn read_entry(dir_entry: &fs::DirEntry) -> Option<Entry> {
+pub(crate) fn read_entry(dir_entry: &fs::DirEntry) -> Option<Entry> {
     let name = dir_entry.file_name().to_string_lossy().into_owned();
     let file_type = dir_entry.file_type().ok()?;
     let meta = dir_entry.metadata().ok();
@@ -217,7 +217,7 @@ fn read_entry(dir_entry: &fs::DirEntry) -> Option<Entry> {
     })
 }
 
-fn sort_entries(entries: &mut [Entry]) {
+pub(crate) fn sort_entries(entries: &mut [Entry]) {
     entries.sort_by(|a, b| {
         let a_dir = a.kind == EntryKind::Dir;
         let b_dir = b.kind == EntryKind::Dir;
