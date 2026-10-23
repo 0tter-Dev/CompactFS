@@ -52,6 +52,39 @@ export interface AppInfo {
 
 export const appInfo = (): Promise<AppInfo> => invoke<AppInfo>("app_info");
 
+export interface TextContent {
+  text: string;
+  encoding: string;
+  truncated: boolean;
+  totalBytes: number;
+}
+
+export type ViewErrorCode = "notFound" | "accessDenied" | "notAFile" | "binary" | "blocked" | "other";
+
+export interface ViewError {
+  code: ViewErrorCode;
+  message: string;
+}
+
+/** Libera o arquivo para o protocolo de arquivos (imagem, vídeo, áudio e PDF); o escopo começa vazio. */
+export const allowView = (path: string): Promise<void> => invoke<void>("allow_view", { path });
+
+export const readText = (path: string): Promise<TextContent> => invoke<TextContent>("read_text", { path });
+
+/** Abre no app padrão do sistema (o núcleo recusa programas, scripts, atalhos e macros). */
+export const openDefault = (path: string): Promise<void> => invoke<void>("open_default", { path });
+
+/** Endereço do arquivo no protocolo de arquivos; só funciona depois de `allowView`. */
+export { convertFileSrc } from "@tauri-apps/api/core";
+
+export function toViewError(err: unknown): ViewError {
+  if (typeof err === "object" && err !== null && "message" in err) {
+    const { code, message } = err as Partial<ViewError>;
+    if (typeof message === "string") return { code: code ?? "other", message };
+  }
+  return { code: "other", message: String(err) };
+}
+
 export const listDrives = (): Promise<Drive[]> => invoke<Drive[]>("list_drives");
 
 export const listDir = (path: string): Promise<Listing> => invoke<Listing>("list_dir", { path });
