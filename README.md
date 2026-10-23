@@ -1,6 +1,6 @@
-# CompactFS (working title)
+# CompactFS
 
-App leve e rápido para visualizar (e, em fases posteriores, editar) arquivos em discos portáteis, como HDs e SSDs externos, voltado a público geral. "CompactFS" (CFS) é só um nome provisório, não o nome final.
+App leve e rápido para visualizar (e, em fases posteriores, editar) arquivos em discos portáteis, como HDs e SSDs externos, voltado a público geral. Nome do produto: **CompactFS** (ver Identidade).
 
 ## Quick Start
 
@@ -41,6 +41,16 @@ Formatos: o núcleo cobre apenas o que o WebView2 reproduz nativamente (por isso
 Fora do núcleo inicial (plugin ou fase posterior): gerenciamento de arquivos, edição de conteúdo, metadados e organização (tags, notas, EXIF), limpeza e manutenção (duplicados, comparação entre discos). Documentos Office: cobertura a avaliar caso a caso.
 
 Fora do escopo por enquanto: sincronização em nuvem, editor profissional (Photoshop, Premiere, Word), gestão de disco/partições e ferramenta de backup.
+
+## Identidade
+
+- **Nome:** **CompactFS**, em inglês, para funcionar internacionalmente. Passa a ideia de um sistema de arquivos compacto e portátil para ver e (depois) manipular arquivos, com visual e uso confortáveis. O app **não** é um sistema de arquivos de verdade nem comprime nada: a tagline existe para deixar isso claro.
+- **CFS:** só como apelido e nos ícones dentro do projeto, nunca como nome de marca, porque a sigla já é muito usada por outras ferramentas (escalonador do Linux, NASA cFS, FastCFS, Cloudflare CFSSL).
+- **Taglines (a escolher):** "Your portable drives, at a glance." ou "A light, fast viewer for external drives."
+- **Logo horizontal:** "Compact" em cinza neutro e "FS" num bloco colorido (o bloco lembra uma miniatura da galeria ou um disco encaixado). A versão com contorno arredondado é só para apresentações; nos tamanhos pequenos ela some.
+- **Cores:** índigo `#3B49C9` (marca; `#7C88F0` em fundo escuro), cinza neutro `#5B6470` (texto) e rosa `#FFB1CB` (acento pequeno).
+- **Ícones:** **A** = bloco "FS"; **B** = bloco "C" com um quadradinho rosa; **C** = o B com "FS" escrito no quadradinho rosa (o escolhido). Os tamanhos pequenos (20 a 24 px) precisam de teste de legibilidade: se o "FS" do C não ler, o menor tamanho usa o B.
+- **Falta:** escolher e converter em contornos o tipo de letra; gerar os arquivos (`.ico` do Windows com 16, 32, 48 e 256 px, ícone adaptativo e monocromático do Android, 512 px para a loja); e **checagem de marca** (INPI e lojas) antes da Play Store. Os desenhos atuais são conceitos, não arquivos finais. A checagem de nome feita até aqui foi só uma triagem: sem conflito direto no GitHub, npm e crates.io, e domínios `compactfs` possivelmente livres (consulta de DNS, a confirmar no registrador).
 
 ## Regras do Produto
 
