@@ -1,8 +1,10 @@
 import {
   appInfo,
   listDir,
+  cancelSearch,
   listDrives,
   openDefault,
+  searchNames,
   toBrowseError,
   toViewError,
   type BrowseError,
@@ -10,9 +12,12 @@ import {
   type DriveKind,
   type Entry,
   type Listing,
+  type SearchEvent,
+  type SearchSummary,
 } from "./api.ts";
-import { formatCount, formatDate, formatSize, joinPath } from "./format.ts";
+import { formatCount, formatDate, formatSize, joinPath, plural } from "./format.ts";
 import { Gallery } from "./gallery.ts";
+import { lastSegment, relativeDir, searchStatus, shouldAutoSearch } from "./search-model.ts";
 import { ThumbLoader } from "./thumbs.ts";
 import { Viewer, type ViewerItem } from "./viewer.ts";
 import { viewerKindOf } from "./viewer-kind.ts";
@@ -68,6 +73,13 @@ const els = {
   viewerOpen: $<HTMLButtonElement>("viewer-open"),
   viewerBody: $<HTMLElement>("viewer-body"),
   viewerNote: $<HTMLElement>("viewer-note"),
+  search: $<HTMLInputElement>("search"),
+  searchBar: $<HTMLElement>("search-bar"),
+  searchInfo: $<HTMLElement>("search-info"),
+  searchWhere: $<HTMLElement>("search-where"),
+  searchReveal: $<HTMLButtonElement>("search-reveal"),
+  searchClose: $<HTMLButtonElement>("search-close"),
+  searchEmpty: $<HTMLElement>("search-empty"),
   statusMain: $<HTMLElement>("status-main"),
   statusApp: $<HTMLElement>("status-app"),
 };
@@ -125,6 +137,22 @@ const viewer = new Viewer(
   },
 );
 
+/** Busca em andamento ou concluída. Os resultados ficam aqui; a pasta (`listing`) continua guardada. */
+interface SearchState {
+  query: string;
+  root: string;
+  results: Entry[];
+  scannedDirs: number;
+  /** `null` enquanto a busca ainda anda. */
+  summary: SearchSummary | null;
+  /** Item que estava selecionado na pasta, para devolver a seleção ao limpar a busca. */
+  savedSelectedName: string | null;
+}
+
+let search: SearchState | null = null;
+let searchToken = 0;
+let searchTimer: number | undefined;
+
 let current: Location | null = null;
 let listing: Listing | null = null;
 let visible: Entry[] = [];
@@ -163,10 +191,9 @@ function updateNavButtons(): void {
   els.back.disabled = historyIndex <= 0;
   els.forward.disabled = historyIndex >= history.length - 1;
   els.up.disabled = current === null || current.kind === "computer";
-}
-
-function plural(n: number, one: string, many: string): string {
-  return `${formatCount(n)} ${n === 1 ? one : many}`;
+  const inFolder = current?.kind === "dir";
+  els.search.disabled = !inFolder;
+  els.search.placeholder = inFolder ? "Buscar (Ctrl+F)" : "Abra uma pasta para buscar";
 }
 
 // ---------- trilha de navegação ----------
@@ -300,7 +327,8 @@ function renderComputer(drives: Drive[]): void {
 // ---------- pasta (lista virtualizada) ----------
 
 function applyFilter(): void {
-  visible = listing ? (showHidden ? listing.entries : listing.entries.filter((e) => !e.hidden)) : [];
+  const source = search ? search.results : (listing?.entries ?? []);
+  visible = showHidden ? source : source.filter((e) => !e.hidden);
 }
 
 function createRow(): RowView {
@@ -336,8 +364,17 @@ function fillRow(view: RowView, entry: Entry, index: number): void {
   row.setAttribute("aria-setsize", String(visible.length));
   icon.textContent = isDir ? "📁" : entry.kind === "file" ? "📄" : "▫️";
   // textContent: nomes de arquivo são dados não confiáveis; nunca vão para innerHTML.
-  name.textContent = entry.isLink ? `${entry.name} ↪` : entry.name;
-  name.title = entry.name;
+  const label = entry.isLink ? `${entry.name} ↪` : entry.name;
+  if (entry.relDir === undefined) {
+    name.textContent = label;
+  } else {
+    // Resultado de busca: o nome e, em cinza, a pasta de onde ele veio.
+    const where = document.createElement("span");
+    where.className = "rel";
+    where.textContent = entry.relDir;
+    name.replaceChildren(document.createTextNode(label), where);
+  }
+  name.title = entry.relDir === undefined ? entry.name : `${entry.name}\n${entry.relDir || "(pasta da busca)"}`;
   date.textContent = formatDate(entry.modifiedMs);
   size.textContent = entry.kind === "file" && entry.size !== null ? formatSize(entry.size) : "";
 }
@@ -376,6 +413,15 @@ function scheduleRender(): void {
 
 function updateFolderStatus(): void {
   if (!listing) return;
+  if (search) {
+    els.statusMain.textContent = searchStatus({
+      query: search.query,
+      matches: search.results.length,
+      scannedDirs: search.scannedDirs,
+      summary: search.summary,
+    });
+    return;
+  }
   const dirs = visible.filter((e) => e.kind === "dir").length;
   const hiddenCount = listing.entries.length - visible.length;
   const parts = [
@@ -416,6 +462,7 @@ function showItems(): void {
 
 function setSelected(index: number, reveal: boolean): void {
   selected = index;
+  updateSearchBar();
   if (viewMode === "grid") {
     gallery.setSelected(index, reveal);
     return;
@@ -481,6 +528,7 @@ interface NavOptions {
 
 /** Carrega um local. Devolve `true` se a tela foi atualizada; respostas antigas são descartadas. */
 async function load(loc: Location, opts: NavOptions = {}): Promise<boolean> {
+  endSearch(false);
   const id = ++requestId;
   const timer = window.setTimeout(() => {
     if (id === requestId) setStatus("Carregando…");
@@ -557,7 +605,7 @@ async function refresh(): Promise<void> {
 }
 
 function pathOf(entry: Entry): string {
-  return listing ? joinPath(listing.path, entry.name, listing.separator) : entry.name;
+  return listing ? joinPath(entry.dir ?? listing.path, entry.name, listing.separator) : entry.name;
 }
 
 /** Abre o visualizador no arquivo, com a lista dos arquivos visualizáveis da pasta para ir e voltar. */
@@ -608,7 +656,189 @@ async function open(entry: Entry): Promise<void> {
   }
 }
 
+// ---------- busca ----------
+
+/** Mostra ou esconde a faixa de resultados e mantém o texto dela em dia. */
+function updateSearchBar(): void {
+  const active = search !== null;
+  els.searchBar.hidden = !active;
+  if (!search) {
+    els.searchEmpty.hidden = true;
+    return;
+  }
+  // Só o nome da pasta na faixa (o caminho completo vai no tooltip): um caminho longo empurrava os
+  // botões para fora da janela.
+  els.searchInfo.textContent = `Busca em ${lastSegment(search.root)}`;
+  els.searchInfo.title = search.root;
+  const entry = visible[selected];
+  els.searchWhere.textContent = entry?.dir
+    ? `Pasta do item: ${entry.relDir ? entry.relDir : "(a própria pasta da busca)"}`
+    : "";
+  els.searchWhere.title = entry?.dir ?? "";
+  els.searchReveal.disabled = !entry?.dir;
+  const finishedEmpty = search.summary !== null && visible.length === 0;
+  els.searchEmpty.hidden = !finishedEmpty;
+  if (finishedEmpty) {
+    els.searchEmpty.textContent = `Nenhum item com “${search.query}” no nome nesta pasta e nas subpastas. Tente menos palavras${showHidden ? "" : " ou ative “Mostrar ocultos”"}.`;
+  }
+}
+
+/** Atualiza a visão com os resultados que acabaram de chegar, sem perder a rolagem. */
+function refreshResultsView(first: boolean): void {
+  if (first) {
+    showItems();
+    return;
+  }
+  if (viewMode === "grid") {
+    gallery.updateItems(visible, selected);
+  } else {
+    els.sizer.style.height = `${visible.length * ROW_HEIGHT}px`;
+    renderRows();
+  }
+}
+
+function onSearchEvent(token: number, event: SearchEvent): void {
+  if (token !== searchToken || !search || !listing) return;
+  if (event.type === "progress") {
+    search.scannedDirs = event.scannedDirs;
+    updateFolderStatus();
+    return;
+  }
+  if (event.type === "done") {
+    // O fim chega pelo mesmo canal dos resultados: todos os lotes já foram recebidos.
+    search.summary = event.summary;
+    updateFolderStatus();
+    updateSearchBar();
+    return;
+  }
+  for (const hit of event.hits) {
+    hit.relDir = relativeDir(search.root, hit.dir ?? search.root, listing.separator);
+    search.results.push(hit);
+  }
+  const first = visible.length === 0;
+  applyFilter();
+  if (selected < 0 && visible.length > 0) selected = 0;
+  refreshResultsView(first);
+  updateFolderStatus();
+  updateSearchBar();
+}
+
+function startSearch(text: string): void {
+  if (!listing || current?.kind !== "dir") return;
+  const query = text.trim();
+  if (query === "") {
+    endSearch(true);
+    return;
+  }
+  const token = ++searchToken;
+  const saved = search ? search.savedSelectedName : selected >= 0 ? (visible[selected]?.name ?? null) : null;
+  search = { query, root: listing.path, results: [], scannedDirs: 0, summary: null, savedSelectedName: saved };
+  loader.clearPending();
+  applyFilter();
+  selected = -1;
+  showItems();
+  updateFolderStatus();
+  updateSearchBar();
+  searchNames(listing.path, query, showHidden, (event) => onSearchEvent(token, event))
+    .then((summary) => {
+      // A resposta do comando pode chegar ANTES dos últimos lotes do canal, então ela não encerra a
+      // busca sozinha (o evento "done" faz isso). Só entra como reserva, se o evento nunca vier.
+      window.setTimeout(() => {
+        if (token !== searchToken || !search || search.summary !== null) return;
+        search.summary = summary;
+        updateFolderStatus();
+        updateSearchBar();
+      }, 3000);
+    })
+    .catch((error: unknown) => {
+      if (token !== searchToken || !search) return;
+      setStatus(`Erro na busca: ${toBrowseError(error).message}`);
+    });
+}
+
+/** Encerra a busca. Com `restore`, volta a mostrar a pasta e a seleção de antes. */
+function endSearch(restore: boolean): void {
+  window.clearTimeout(searchTimer);
+  const had = search !== null;
+  const savedName = search?.savedSelectedName ?? null;
+  if (had) {
+    searchToken += 1; // descarta lotes e o resumo que ainda estejam a caminho
+    void cancelSearch().catch(() => {});
+    search = null;
+  }
+  els.search.value = "";
+  updateSearchBar();
+  if (had && restore && listing) {
+    applyFilter();
+    const found = savedName === null ? -1 : visible.findIndex((e) => e.name === savedName);
+    selected = found >= 0 ? found : visible.length > 0 ? 0 : -1;
+    showItems();
+    updateFolderStatus();
+    activeScroller().focus({ preventScroll: true });
+  }
+}
+
+/** Mostra o resultado selecionado dentro da pasta dele, com ele selecionado. */
+function revealResult(): void {
+  const entry = visible[selected];
+  if (!search || !entry?.dir) return;
+  void go({ kind: "dir", path: entry.dir }, { selectName: entry.name });
+}
+
+function focusSearch(): void {
+  if (els.search.disabled) {
+    flashStatus("Abra uma pasta para buscar.");
+    return;
+  }
+  els.search.focus();
+  els.search.select();
+}
+
+/** Esc limpa a busca; Shift+Enter mostra o resultado na pasta dele. Devolve `true` se tratou a tecla. */
+function searchShortcut(e: KeyboardEvent): boolean {
+  if (!search) return false;
+  if (e.key === "Escape") {
+    e.preventDefault();
+    endSearch(true);
+    return true;
+  }
+  if (e.key === "Enter" && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    e.preventDefault();
+    revealResult();
+    return true;
+  }
+  return false;
+}
+
 // ---------- eventos ----------
+
+els.search.addEventListener("input", () => {
+  window.clearTimeout(searchTimer);
+  const text = els.search.value;
+  if (text.trim() === "") {
+    endSearch(true);
+  } else if (shouldAutoSearch(text)) {
+    searchTimer = window.setTimeout(() => startSearch(text), 300);
+  }
+});
+
+els.search.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    window.clearTimeout(searchTimer);
+    startSearch(els.search.value);
+  } else if (e.key === "Escape") {
+    e.preventDefault();
+    endSearch(true);
+    activeScroller().focus({ preventScroll: true });
+  } else if (e.key === "ArrowDown") {
+    e.preventDefault();
+    activeScroller().focus({ preventScroll: true });
+  }
+});
+
+els.searchReveal.addEventListener("click", () => revealResult());
+els.searchClose.addEventListener("click", () => endSearch(true));
 
 els.back.addEventListener("click", () => void back());
 els.forward.addEventListener("click", () => void forward());
@@ -618,6 +848,10 @@ els.refresh.addEventListener("click", () => void refresh());
 els.showHidden.addEventListener("change", () => {
   showHidden = els.showHidden.checked;
   if (!listing) return;
+  if (search) {
+    startSearch(search.query); // os ocultos mudam o que a busca percorre
+    return;
+  }
   const keep = selected >= 0 ? (visible[selected]?.name ?? null) : null;
   applyFilter();
   const found = keep === null ? -1 : visible.findIndex((e) => e.name === keep);
@@ -651,7 +885,7 @@ const NAV_KEYS = new Set<string>(["ArrowUp", "ArrowDown", "PageUp", "PageDown", 
 const GRID_KEYS = new Set<string>([...NAV_KEYS, "ArrowLeft", "ArrowRight"]);
 
 els.grid.addEventListener("keydown", (e) => {
-  if (openWithDefaultShortcut(e) || e.altKey || e.ctrlKey || e.metaKey) return;
+  if (searchShortcut(e) || openWithDefaultShortcut(e) || e.altKey || e.ctrlKey || e.metaKey) return;
   if (GRID_KEYS.has(e.key)) {
     e.preventDefault();
     setSelected(gallery.moveSelection(selected, e.key as GridKey), true);
@@ -665,7 +899,7 @@ els.grid.addEventListener("keydown", (e) => {
 });
 
 els.list.addEventListener("keydown", (e) => {
-  if (openWithDefaultShortcut(e) || e.altKey || e.ctrlKey || e.metaKey) return;
+  if (searchShortcut(e) || openWithDefaultShortcut(e) || e.altKey || e.ctrlKey || e.metaKey) return;
   if (NAV_KEYS.has(e.key)) {
     e.preventDefault();
     const page = Math.max(1, Math.floor(els.list.clientHeight / ROW_HEIGHT) - 1);
@@ -685,7 +919,10 @@ document.addEventListener("keydown", (e) => {
     return;
   }
   const typing = e.target instanceof HTMLInputElement && e.target.type === "text";
-  if (e.key === "F5") {
+  if (e.ctrlKey && !e.altKey && !e.metaKey && e.key.toLowerCase() === "f") {
+    e.preventDefault();
+    focusSearch();
+  } else if (e.key === "F5") {
     e.preventDefault();
     void refresh();
   } else if (e.altKey && e.key === "ArrowLeft") {

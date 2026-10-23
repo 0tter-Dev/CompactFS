@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 
 export type EntryKind = "dir" | "file" | "other";
 
@@ -9,6 +9,10 @@ export interface Entry {
   modifiedMs: number | null;
   hidden: boolean;
   isLink: boolean;
+  /** Só nos resultados da busca: pasta onde o item está (caminho completo). */
+  dir?: string;
+  /** Só nos resultados da busca: `dir` relativo à pasta onde a busca começou (calculado no frontend). */
+  relDir?: string;
 }
 
 export interface Crumb {
@@ -84,6 +88,38 @@ export function toViewError(err: unknown): ViewError {
   }
   return { code: "other", message: String(err) };
 }
+
+export type SearchEvent =
+  | { type: "hits"; hits: Entry[] }
+  | { type: "progress"; scannedDirs: number; scannedEntries: number }
+  | { type: "done"; summary: SearchSummary };
+
+export interface SearchSummary {
+  scannedDirs: number;
+  scannedEntries: number;
+  matches: number;
+  skippedDirs: number;
+  truncated: boolean;
+  cancelled: boolean;
+  elapsedMs: number;
+}
+
+/**
+ * Busca por nome na pasta e subpastas. Os resultados chegam em lotes por `onEvent` enquanto a busca
+ * anda; a promessa resolve com o resumo. Uma busca nova cancela a anterior no núcleo.
+ */
+export function searchNames(
+  root: string,
+  query: string,
+  showHidden: boolean,
+  onEvent: (event: SearchEvent) => void,
+): Promise<SearchSummary> {
+  const channel = new Channel<SearchEvent>();
+  channel.onmessage = onEvent;
+  return invoke<SearchSummary>("search_names", { root, query, showHidden, onEvent: channel });
+}
+
+export const cancelSearch = (): Promise<void> => invoke<void>("cancel_search");
 
 export const listDrives = (): Promise<Drive[]> => invoke<Drive[]>("list_drives");
 

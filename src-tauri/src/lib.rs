@@ -1,10 +1,18 @@
-use std::{path::Path, time::Instant};
+use std::{
+    path::Path,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
+    time::Instant,
+};
 
 use serde::Serialize;
-use tauri::{AppHandle, Builder, Manager, Runtime, State};
+use tauri::{ipc::Channel, AppHandle, Builder, Manager, Runtime, State};
 
 mod browse;
 mod drives;
+mod search;
 mod thumbs;
 mod viewer;
 #[cfg(windows)]
@@ -12,6 +20,7 @@ mod webview2;
 
 use browse::{BrowseError, ErrorCode, Listing};
 use drives::Drive;
+use search::{Query, SearchEvent, SearchSummary};
 use thumbs::{ThumbError, ThumbErrorCode};
 use viewer::{TextContent, ViewError, ViewErrorCode};
 
@@ -124,11 +133,80 @@ async fn open_default(path: String) -> Result<(), ViewError> {
         })?
 }
 
+/// Bandeira de cancelamento da busca em andamento (só existe uma por vez).
+#[derive(Default)]
+struct SearchControl(Mutex<Option<Arc<AtomicBool>>>);
+
+/// Busca por nome na pasta e nas subpastas. Os resultados chegam em lotes pelo canal enquanto a busca
+/// anda; o retorno é o resumo final. Uma busca nova cancela a anterior.
+#[tauri::command]
+async fn search_names(
+    control: State<'_, SearchControl>,
+    root: String,
+    query: String,
+    show_hidden: bool,
+    on_event: Channel<SearchEvent>,
+) -> Result<SearchSummary, BrowseError> {
+    let Some(query) = Query::parse(&query) else {
+        return Err(BrowseError::new(
+            ErrorCode::Other,
+            "Digite algo para buscar.",
+        ));
+    };
+    let cancel = Arc::new(AtomicBool::new(false));
+    if let Some(previous) = control
+        .0
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .replace(cancel.clone())
+    {
+        previous.store(true, Ordering::Relaxed);
+    }
+    let flag = cancel.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        let summary = search::search(
+            Path::new(&root),
+            &query,
+            show_hidden,
+            search::MAX_RESULTS,
+            &flag,
+            |event| {
+                // Se a janela sumiu, não há para quem enviar; a busca segue até acabar ou ser cancelada.
+                let _ = on_event.send(event);
+            },
+        )?;
+        // O fim vai pelo mesmo canal dos resultados: a interface só pode concluir a busca depois de
+        // ter recebido todos os lotes, e a resposta do comando pode chegar antes deles.
+        let _ = on_event.send(SearchEvent::Done {
+            summary: summary.clone(),
+        });
+        Ok(summary)
+    })
+    .await
+    .map_err(|e| BrowseError::new(ErrorCode::Other, format!("Falha interna na busca: {e}")))?;
+
+    // Só limpa a bandeira se ainda for a desta busca (outra pode ter começado no meio tempo).
+    let mut current = control.0.lock().unwrap_or_else(|e| e.into_inner());
+    if current.as_ref().is_some_and(|c| Arc::ptr_eq(c, &cancel)) {
+        *current = None;
+    }
+    result
+}
+
+/// Cancela a busca em andamento, se houver.
+#[tauri::command]
+fn cancel_search(control: State<'_, SearchControl>) {
+    if let Some(flag) = control.0.lock().unwrap_or_else(|e| e.into_inner()).take() {
+        flag.store(true, Ordering::Relaxed);
+    }
+}
+
 /// Registra o estado e os comandos do app. Separado de `run()` para ser testável com o runtime de mock.
 #[doc(hidden)]
 pub fn configure<R: Runtime>(builder: Builder<R>, started_at: Instant) -> Builder<R> {
     builder
         .manage(StartedAt(started_at))
+        .manage(SearchControl::default())
         .invoke_handler(tauri::generate_handler![
             app_info,
             list_drives,
@@ -136,7 +214,9 @@ pub fn configure<R: Runtime>(builder: Builder<R>, started_at: Instant) -> Builde
             thumbnail,
             allow_view,
             read_text,
-            open_default
+            open_default,
+            search_names,
+            cancel_search
         ])
 }
 

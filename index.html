@@ -12,6 +12,7 @@
       <button id="up" type="button" title="Subir um nível (Backspace ou Alt+↑)" aria-label="Subir um nível" disabled>↑</button>
       <button id="refresh" type="button" title="Atualizar (F5)" aria-label="Atualizar">⟳</button>
       <nav id="crumbs" aria-label="Caminho"></nav>
+      <input id="search" class="search" type="text" role="searchbox" autocomplete="off" spellcheck="false" placeholder="Buscar (Ctrl+F)" aria-label="Buscar por nome nesta pasta e nas subpastas" />
       <div class="seg" role="group" aria-label="Modo de exibição">
         <button id="view-grid" type="button" aria-pressed="true" title="Galeria (miniaturas)">▦ Galeria</button>
         <button id="view-list" type="button" aria-pressed="false" title="Lista (detalhes)">☰ Lista</button>
@@ -22,6 +23,13 @@
     <main id="main">
       <section id="computer" aria-label="Este computador" hidden></section>
       <section id="folder" hidden>
+        <div id="search-bar" class="search-bar" hidden>
+          <span id="search-info" class="search-info"></span>
+          <span id="search-where" class="search-where"></span>
+          <button id="search-reveal" type="button" title="Mostrar o item na pasta dele (Shift+Enter)">Mostrar na pasta</button>
+          <button id="search-close" type="button" title="Limpar a busca (Esc)">✕ Limpar</button>
+        </div>
+        <div id="search-empty" class="search-empty" role="status" hidden></div>
         <div id="columns" class="columns" aria-hidden="true">
           <span></span><span>Nome</span><span>Modificado</span><span>Tamanho</span>
         </div>

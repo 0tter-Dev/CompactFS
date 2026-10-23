@@ -19,6 +19,11 @@ export function formatCount(n: number): string {
   return integer.format(n);
 }
 
+/** "1 item" / "2 itens", com separador de milhar. */
+export function plural(n: number, one: string, many: string): string {
+  return `${integer.format(n)} ${n === 1 ? one : many}`;
+}
+
 export function formatDate(ms: number | null): string {
   return ms === null ? "" : dateTime.format(new Date(ms));
 }
