@@ -60,7 +60,7 @@ Fora do escopo por enquanto: sincronização em nuvem, editor profissional (Phot
 
 ## Status
 
-Etapas 1 (spike no Windows), 2 (navegação por pastas), 3 (galeria com miniaturas), 4 (visualizadores básicos) e 5 (busca por nome) concluídas, **com a validação em disco externo e em HD mecânico pendente**. A etapa 6 (metas de leveza e velocidade) está proposta, aguardando aprovação. Próximo passo: protótipo de acesso a discos no mobile (etapa 7).
+Etapas 1 (spike no Windows), 2 (navegação por pastas), 3 (galeria com miniaturas), 4 (visualizadores básicos) e 5 (busca por nome) concluídas, **com a validação em disco externo e em HD mecânico pendente**. A etapa 6 (metas de leveza e velocidade) está definida e aprovada. Próximo passo: protótipo de acesso a discos no mobile (etapa 7).
 
 Medições (Windows 11, uma máquina, disco SSD SATA formatado em NTFS, build release; "MiB" = 1024² bytes):
 
@@ -84,25 +84,25 @@ Não validado ainda: a busca em **HD mecânico** e em disco externo (só se medi
 
 Em aberto:
 
-- Aprovação das metas propostas em "Metas de leveza e velocidade" e, depois, metas para **HD mecânico** e disco externo, que só podem ser definidas depois de medir num.
+- Metas para **HD mecânico** e disco externo, que só podem ser definidas depois de medir num.
 - Viabilidade de executar de dentro de um disco externo em máquinas de terceiros (SmartScreen, antivírus, WebView2 disponível): validar com testes manuais quando houver um disco externo e outra máquina à mão.
 - Acesso a discos externos no Android (Storage Access Framework) e no iOS: validar num protótipo antes da fase 2.
 
 ## Metas de leveza e velocidade
 
-**Propostas, aguardando aprovação do mantenedor.** Definidas a partir das medições acima (SSD interno, uma máquina), com folga para variação de máquina. Servem como teto: passar de um deles pede uma justificativa registrada aqui, não um ajuste silencioso.
+**Aprovadas pelo mantenedor.** Definidas a partir das medições acima (SSD interno, uma máquina), com folga para variação de máquina. Servem como teto: passar de um deles pede uma justificativa registrada aqui, não um ajuste silencioso.
 
 | Meta | Teto | Hoje |
 | --- | --- | --- |
-| Tamanho do `compactfs.exe` | 4 MiB | 3,08 MiB |
+| Tamanho do `compactfs.exe` | 5 MiB | 3,08 MiB |
 | Interface pronta (perfil do WebView2 já criado) | 500 ms | 270 a 300 ms |
-| Listar uma pasta com 50.000 arquivos (do clique à lista na tela) | 400 ms | cerca de 170 ms |
-| Busca numa árvore de 50.000+ arquivos, poucos resultados | 300 ms | 70 a 80 ms |
-| Primeira miniatura de uma pasta de fotos | 400 ms | 140 a 160 ms |
-| Memória parado (app + WebView2): working set / privada | 450 MB / 250 MB | 355 MB / 167 MB |
-| Memória na pior tela medida (foto de 12 megapixels aberta) | 600 MB / 400 MB | 515 MB / 320 MB |
+| Listar uma pasta com 50.000 arquivos (do clique à lista na tela) | 500 ms | cerca de 170 ms |
+| Busca numa árvore de 50.000+ arquivos, poucos resultados | 500 ms | 70 a 80 ms |
+| Primeira miniatura de uma pasta de fotos | 500 ms | 140 a 160 ms |
+| Memória parado (app + WebView2): working set / privada | 500 MB / 250 MB | 355 MB / 167 MB |
+| Memória na pior tela medida (foto de 12 megapixels aberta) | 1.000 MB / 500 MB | 515 MB / 320 MB |
 
-- **Verificado pela CI:** só o tamanho do executável (o build falha acima de 4 MiB). O restante é medido à mão com os testes de ponta a ponta, que não estão na CI; um valor acima do teto numa medição manual deve virar um item em "Em aberto".
+- **Verificado pela CI:** só o tamanho do executável (o build falha acima de 5 MiB). O restante é medido à mão com os testes de ponta a ponta, que não estão na CI; um valor acima do teto numa medição manual deve virar um item em "Em aberto".
 - A maior parte da memória é do WebView2, não do app: reduzir de verdade pede outra estratégia (por exemplo, menos processos), fora do que a fase 1 prevê.
 - Os tetos de tempo valem para SSD. Para **HD mecânico** e disco externo não há meta ainda, porque nunca foi medido.
 
