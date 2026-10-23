@@ -63,3 +63,6 @@ jobs:
         run: |
           $exe = Get-Item src-tauri/target/release/compactfs.exe
           "compactfs.exe: {0:N2} MiB ({1} bytes)" -f ($exe.Length / 1MB), $exe.Length | Tee-Object -Append $env:GITHUB_STEP_SUMMARY
+          # Orçamento de tamanho (ver "Metas de leveza e velocidade" no README).
+          $budget = 4MB
+          if ($exe.Length -gt $budget) { throw "compactfs.exe passou do orçamento de $budget bytes" }
