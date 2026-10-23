@@ -20,7 +20,7 @@ serde = { version = "1", features = ["derive"] }
 # Windows: checagem do runtime do WebView2. Mesmas versões e features que o Tauri já usa (sem crate nova).
 [target.'cfg(windows)'.dependencies]
 webview2-com = "0.39"
-windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_System_Com", "Win32_System_Diagnostics_Debug", "Win32_UI_WindowsAndMessaging"] }
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Storage_FileSystem", "Win32_System_Com", "Win32_System_Diagnostics_Debug", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 
 # Só para testes; não entram no executável.
 [dev-dependencies]

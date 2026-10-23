@@ -122,3 +122,78 @@ fn list_drives_returns_drive_roots_in_the_expected_shape() {
         assert!(d.get("total_bytes").is_none());
     }
 }
+
+fn fixture(name: &str) -> String {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join(name)
+        .to_string_lossy()
+        .into_owned()
+}
+
+/// Como `invoke_with`, mas devolve o corpo binário (comandos que respondem com `Response`).
+fn invoke_raw(cmd: &str, body: Value) -> Result<Vec<u8>, Value> {
+    use tauri::ipc::InvokeResponseBody;
+    let app = configure(mock_builder(), Instant::now())
+        .build(mock_context(noop_assets()))
+        .expect("app de teste");
+    let window = WebviewWindowBuilder::new(&app, "main", WebviewUrl::default())
+        .build()
+        .expect("janela de teste");
+    get_ipc_response(
+        &window,
+        InvokeRequest {
+            cmd: cmd.into(),
+            callback: CallbackFn(0),
+            error: CallbackFn(1),
+            url: "http://tauri.localhost".parse().expect("url"),
+            body: InvokeBody::Json(body),
+            headers: Default::default(),
+            invoke_key: INVOKE_KEY.to_string(),
+        },
+    )
+    .map(|body| match body {
+        InvokeResponseBody::Raw(bytes) => bytes,
+        InvokeResponseBody::Json(json) => panic!("esperava binário, veio JSON: {json}"),
+    })
+}
+
+#[cfg(windows)]
+#[test]
+fn thumbnail_command_returns_width_height_and_rgba_bytes() {
+    let bytes = invoke_raw(
+        "thumbnail",
+        json!({ "path": fixture("photo.jpg"), "size": 128 }),
+    )
+    .expect("comando thumbnail registrado");
+    let width = u32::from_le_bytes(bytes[0..4].try_into().unwrap());
+    let height = u32::from_le_bytes(bytes[4..8].try_into().unwrap());
+    assert_eq!((width, height), (96, 64));
+    assert_eq!(bytes.len(), 8 + 96 * 64 * 4);
+}
+
+#[cfg(windows)]
+#[test]
+fn thumbnail_command_reports_errors_with_a_code() {
+    let err = invoke_raw(
+        "thumbnail",
+        json!({ "path": fixture("notes.txt"), "size": 128 }),
+    )
+    .expect_err("texto não tem miniatura");
+    assert_eq!(err["code"], "unavailable");
+    assert!(err["message"].is_string());
+
+    let missing = invoke_raw(
+        "thumbnail",
+        json!({ "path": fixture("nao-existe.png"), "size": 128 }),
+    )
+    .expect_err("arquivo inexistente");
+    assert_eq!(missing["code"], "notFound");
+}
+
+#[test]
+fn thumbnail_command_rejects_missing_arguments() {
+    assert!(invoke_raw("thumbnail", json!({})).is_err());
+    assert!(invoke_raw("thumbnail", json!({ "path": "x" })).is_err());
+}
