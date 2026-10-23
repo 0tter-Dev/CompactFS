@@ -98,6 +98,17 @@ export class Gallery {
     this.render();
   }
 
+  /**
+   * Troca a lista mantendo a rolagem: usado quando os resultados da busca vão chegando. Os itens que
+   * já existiam seguem os mesmos objetos, então os tiles não são refeitos.
+   */
+  updateItems(entries: Entry[], selected: number): void {
+    this.entries = entries;
+    this.selected = selected;
+    this.relayout();
+    this.render();
+  }
+
   setSelected(index: number, reveal: boolean): void {
     this.selected = index;
     if (reveal) this.revealSelected();
@@ -211,7 +222,10 @@ export class Gallery {
     el.classList.toggle("dim", entry.hidden);
     // textContent: nomes de arquivo são dados não confiáveis; nunca vão para innerHTML.
     view.name.textContent = entry.isLink ? `${entry.name} ↪` : entry.name;
-    el.title = entry.kind === "file" && entry.size !== null ? `${entry.name}\n${formatSize(entry.size)}` : entry.name;
+    const details = entry.kind === "file" && entry.size !== null ? formatSize(entry.size) : "";
+    // Num resultado de busca, o tooltip diz de que pasta ele veio.
+    const where = entry.relDir === undefined ? "" : entry.relDir === "" ? "(pasta da busca)" : entry.relDir;
+    el.title = [entry.name, details, where].filter((line) => line !== "").join("\n");
     this.showGlyph(view, isDir ? "📁" : entry.kind === "file" ? "📄" : "▫️");
 
     if (entry.kind === "file" && isThumbnailable(entry.name)) this.loadThumbnail(view, entry);
@@ -233,7 +247,7 @@ export class Gallery {
   }
 
   private loadThumbnail(view: TileView, entry: Entry): void {
-    const path = joinPath(this.dir, entry.name, this.separator);
+    const path = joinPath(entry.dir ?? this.dir, entry.name, this.separator);
     const key = thumbKey(path, entry.modifiedMs, entry.size);
     view.key = key;
 

@@ -67,6 +67,7 @@ button:focus-visible,
 
 .toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 4px;
   padding: 6px 8px;
@@ -95,7 +96,7 @@ button:focus-visible,
 }
 
 #crumbs {
-  flex: 1;
+  flex: 1 1 160px;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -238,8 +239,8 @@ span.crumb {
 
 #folder {
   height: 100%;
-  display: grid;
-  grid-template-rows: auto 1fr;
+  display: flex;
+  flex-direction: column;
 }
 
 .columns,
@@ -265,6 +266,7 @@ span.crumb {
 #list {
   position: relative;
   overflow: auto;
+  flex: 1 1 0;
   min-height: 0;
 }
 
@@ -403,6 +405,7 @@ span.crumb {
 #grid {
   position: relative;
   overflow: auto;
+  flex: 1 1 0;
   min-height: 0;
 }
 
@@ -748,4 +751,87 @@ span.crumb {
 .markdown .md-image {
   color: var(--muted);
   font-style: italic;
+}
+
+/* ---------- busca ---------- */
+
+.search {
+  flex: 0 1 190px;
+  width: 190px;
+  min-width: 90px;
+  height: 30px;
+  padding: 0 10px;
+  font: inherit;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.search:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.search:disabled {
+  opacity: 0.5;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  background: var(--accent-bg);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.search-info {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.search-where {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.search-bar button {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.search-bar button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.search-bar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.search-empty {
+  padding: 24px;
+  color: var(--muted);
+}
+
+.rel {
+  margin-left: 0.5em;
+  color: var(--muted);
+  font-size: 12px;
 }
