@@ -1,6 +1,6 @@
-# CompactFS (working title)
+# CompactFS
 
-App leve e rápido para visualizar (e, em fases posteriores, editar) arquivos em discos portáteis, como HDs e SSDs externos, voltado a público geral. "CompactFS" (CFS) é só um nome provisório, não o nome final.
+App leve e rápido para visualizar (e, em fases posteriores, editar) arquivos em discos portáteis, como HDs e SSDs externos, voltado a público geral. Nome do produto: **CompactFS** (ver Identidade).
 
 ## Quick Start
 
@@ -42,6 +42,28 @@ Fora do núcleo inicial (plugin ou fase posterior): gerenciamento de arquivos, e
 
 Fora do escopo por enquanto: sincronização em nuvem, editor profissional (Photoshop, Premiere, Word), gestão de disco/partições e ferramenta de backup.
 
+## Identidade
+
+- **Nome:** **CompactFS**, em inglês, para funcionar internacionalmente. Passa a ideia de um sistema de arquivos compacto e portátil para ver e (depois) manipular arquivos, com visual e uso confortáveis. O app **não** é um sistema de arquivos de verdade nem comprime nada: a tagline existe para deixar isso claro.
+- **CFS:** só como apelido e nos ícones dentro do projeto, nunca como nome de marca, porque a sigla já é muito usada por outras ferramentas (escalonador do Linux, NASA cFS, FastCFS, Cloudflare CFSSL).
+- **Tagline:** "Your portable drives, at a glance." (alternativa descartada por ora: "A light, fast viewer for external drives.").
+- **Ideia visual:** separar o `C` de **C**ompact do `FS` de **F**ile**S**ystem. O `C` aberto "olha" para o `FS`, que fica num bloco como uma miniatura da galeria ou um disco encaixado.
+- **Tipografia:** Nunito (licença SIL OFL, livre para uso em logo), pesos 600 (`Compact`) e 700 (`FS`). O logo final usa o texto convertido em contornos; a fonte **não** é embarcada no app (a interface continua com a fonte do sistema, por causa do peso).
+- **Cores** (sensação convencional, não universal: azul-noite = sobriedade e tecnologia; menta = frescor e velocidade):
+
+  | Papel | Cor | Contraste |
+  | --- | --- | --- |
+  | Fundo do ícone, `FS` e "Compact" em fundo claro | azul-noite `#14123A` | `C` branco no fundo: 17,8:1 |
+  | Bloco `FS` | menta `#2DD4BF` | `FS` no bloco: 9,6:1 |
+  | `C` e "Compact" em fundo escuro | branco `#FFFFFF` | |
+
+- **Ícone** (grade de 100; cantos do ícone de 9): `C` branco em arco, traço de 7,5, 35,6 de largura por 45,6 de altura; bloco menta quadrado de 44,6, cantos de 8, com o centro alinhado ao do `C`; `FS` com altura de letra de 22 (49% do bloco); margens laterais de 6,9 e espaço de 6 entre o `C` e o bloco.
+- **Logo horizontal:** "Compact" seguido do bloco `FS`, mais largo que o do ícone (cerca de 1,75:1, proporção do primeiro esboço). Em fundo escuro: texto branco e bloco menta. Em **fundo claro o bloco é invertido** (azul-noite com `FS` menta), porque menta sobre branco tem só 1,9:1 de contraste.
+- **Tamanhos:** o `FS` lê bem de 32 px para cima e no limite em 24 px; abaixo disso (16 a 20 px) o bloco vai sem letras.
+- **Plataformas:** Windows com `.ico` (16, 32, 48 e 256 px); Android com ícone adaptativo (fundo azul-noite cheio, sem cantos arredondados, conteúdo dentro da zona segura de 66 dp, num canvas de 108 dp), ícone monocromático (Android 13+, `FS` vazado no bloco) e 512 px para a Play Store, também com fundo cheio.
+- **Arquivos:** os mestres vetoriais ficam em `assets/brand/` (`icon.svg`, `icon-small.svg` sem letras, `icon-square.svg` para a loja, `android-foreground/background/monochrome.svg`, `logo-light.svg` e `logo-dark.svg`), com o texto já em contornos. O Windows usa `src-tauri/icons/icon.ico` com frames de 16, 20, 24, 32, 48, 64, 128 e 256 px (16 e 20 sem letras), e os demais PNGs vêm do `pnpm tauri icon`. Os recursos do Android (mipmaps) e o PNG de 512 px da Play Store saem dos mestres na etapa do mobile.
+- **Pendências:** em barra de tarefas escura o azul-noite do ícone quase some nas bordas (cerca de 1,1:1 contra `#202020`; o `C` branco e o bloco menta continuam legíveis). Testar no Windows de verdade e, se preciso, acrescentar uma borda fina mais clara. Também falta a **checagem de marca** (INPI e lojas) antes da Play Store. A checagem de nome feita até aqui foi só uma triagem: sem conflito direto no GitHub, npm e crates.io, e domínios `compactfs` possivelmente livres (consulta de DNS, a confirmar no registrador).
+
 ## Regras do Produto
 
 - **Prioridade central:** leve, simples, rápido e intuitivo. Qualquer funcionalidade que comprometa isso fica fora do núcleo.
@@ -64,7 +86,7 @@ Etapas 1 (spike no Windows), 2 (navegação por pastas), 3 (galeria com miniatur
 
 Medições (Windows 11, uma máquina, disco SSD SATA formatado em NTFS, build release; "MiB" = 1024² bytes):
 
-- Executável: 3,08 MiB (3.232.256 bytes); a busca acrescentou cerca de 27 KB, sem dependência nova. A navegação acrescentou cerca de 39 KB aos 3.045.888 bytes do spike, as miniaturas cerca de 23 KB e os visualizadores cerca de 94 KB (protocolo de arquivos, a crate `http-range` e o código dos visualizadores e do markdown). O JavaScript entregue tem 45,3 kB (16,1 kB comprimido).
+- Executável: 3,08 MiB (3.234.304 bytes); a busca acrescentou cerca de 27 KB e os ícones novos cerca de 2 KB, sem dependência nova. A navegação acrescentou cerca de 39 KB aos 3.045.888 bytes do spike, as miniaturas cerca de 23 KB e os visualizadores cerca de 94 KB (protocolo de arquivos, a crate `http-range` e o código dos visualizadores e do markdown). O JavaScript entregue tem 45,3 kB (16,1 kB comprimido).
 - Visualizadores: um texto abre em cerca de 30 ms e o primeiro 1 MiB de um log de 2 MB em cerca de 80 ms; uma foto de 4000x3000 (12 megapixels) termina de carregar em cerca de 25 ms (a decodificação vem logo depois, e o "Carregando…" fica na tela até a imagem estar pronta para pintar); um vídeo MP4 (H.264) e um áudio M4A (AAC) tocam e permitem avançar no tempo.
 - Memória com uma foto de 12 megapixels aberta no visualizador: cerca de 515 MB de working set e 320 MB de memória privada, contra 355 MB e 170 MB na lista parada. A decodificação da foto grande e o WebView2 explicam a diferença; é o ponto mais pesado até agora.
 - Galeria, numa pasta com 410 itens (400 JPEGs de 1600x1200, três fotos de 24 megapixels e outros formatos): primeira miniatura em cerca de 140 a 160 ms e a primeira tela inteira (18 miniaturas) pouco depois; atravessar os 410 itens rolando rápido gerou só 29 pedidos de miniatura; reabrir uma pasta já vista não faz pedido nenhum. Uma pasta com 50.000 arquivos abre em galeria em cerca de 160 ms.
