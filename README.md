@@ -46,11 +46,22 @@ Fora do escopo por enquanto: sincronização em nuvem, editor profissional (Phot
 
 - **Nome:** **CompactFS**, em inglês, para funcionar internacionalmente. Passa a ideia de um sistema de arquivos compacto e portátil para ver e (depois) manipular arquivos, com visual e uso confortáveis. O app **não** é um sistema de arquivos de verdade nem comprime nada: a tagline existe para deixar isso claro.
 - **CFS:** só como apelido e nos ícones dentro do projeto, nunca como nome de marca, porque a sigla já é muito usada por outras ferramentas (escalonador do Linux, NASA cFS, FastCFS, Cloudflare CFSSL).
-- **Taglines (a escolher):** "Your portable drives, at a glance." ou "A light, fast viewer for external drives."
-- **Logo horizontal:** "Compact" em cinza neutro e "FS" num bloco colorido (o bloco lembra uma miniatura da galeria ou um disco encaixado). A versão com contorno arredondado é só para apresentações; nos tamanhos pequenos ela some.
-- **Cores:** índigo `#3B49C9` (marca; `#7C88F0` em fundo escuro), cinza neutro `#5B6470` (texto) e rosa `#FFB1CB` (acento pequeno).
-- **Ícones:** **A** = bloco "FS"; **B** = bloco "C" com um quadradinho rosa; **C** = o B com "FS" escrito no quadradinho rosa (o escolhido). Os tamanhos pequenos (20 a 24 px) precisam de teste de legibilidade: se o "FS" do C não ler, o menor tamanho usa o B.
-- **Falta:** escolher e converter em contornos o tipo de letra; gerar os arquivos (`.ico` do Windows com 16, 32, 48 e 256 px, ícone adaptativo e monocromático do Android, 512 px para a loja); e **checagem de marca** (INPI e lojas) antes da Play Store. Os desenhos atuais são conceitos, não arquivos finais. A checagem de nome feita até aqui foi só uma triagem: sem conflito direto no GitHub, npm e crates.io, e domínios `compactfs` possivelmente livres (consulta de DNS, a confirmar no registrador).
+- **Tagline:** "Your portable drives, at a glance." (alternativa descartada por ora: "A light, fast viewer for external drives.").
+- **Ideia visual:** separar o `C` de **C**ompact do `FS` de **F**ile**S**ystem. O `C` aberto "olha" para o `FS`, que fica num bloco como uma miniatura da galeria ou um disco encaixado.
+- **Tipografia:** Nunito (licença SIL OFL, livre para uso em logo), pesos 600 (`Compact`) e 700 (`FS`). O logo final usa o texto convertido em contornos; a fonte **não** é embarcada no app (a interface continua com a fonte do sistema, por causa do peso).
+- **Cores** (sensação convencional, não universal: azul-noite = sobriedade e tecnologia; menta = frescor e velocidade):
+
+  | Papel | Cor | Contraste |
+  | --- | --- | --- |
+  | Fundo do ícone, `FS` e "Compact" em fundo claro | azul-noite `#14123A` | `C` branco no fundo: 17,8:1 |
+  | Bloco `FS` | menta `#2DD4BF` | `FS` no bloco: 9,6:1 |
+  | `C` e "Compact" em fundo escuro | branco `#FFFFFF` | |
+
+- **Ícone** (grade de 100; cantos do ícone de 9): `C` branco em arco, traço de 7,5, 35,6 de largura por 45,6 de altura; bloco menta quadrado de 44,6, cantos de 8, com o centro alinhado ao do `C`; `FS` com altura de letra de 22 (49% do bloco); margens laterais de 6,9 e espaço de 6 entre o `C` e o bloco.
+- **Logo horizontal:** "Compact" seguido do bloco `FS`, mais largo que o do ícone (cerca de 1,75:1, proporção do primeiro esboço). Em fundo escuro: texto branco e bloco menta. Em **fundo claro o bloco é invertido** (azul-noite com `FS` menta), porque menta sobre branco tem só 1,9:1 de contraste.
+- **Tamanhos:** o `FS` lê bem de 32 px para cima e no limite em 24 px; abaixo disso (16 a 20 px) o bloco vai sem letras.
+- **Plataformas:** Windows com `.ico` (16, 32, 48 e 256 px); Android com ícone adaptativo (fundo azul-noite cheio, sem cantos arredondados, conteúdo a 60% na zona segura), ícone monocromático (Android 13+, `FS` vazado no bloco) e 512 px para a Play Store, também com fundo cheio.
+- **Pendências:** em barra de tarefas escura o azul-noite do ícone quase some nas bordas (cerca de 1,1:1 contra `#202020`; o `C` branco e o bloco menta continuam legíveis). Testar no Windows de verdade e, se preciso, acrescentar uma borda fina mais clara. Também falta a **checagem de marca** (INPI e lojas) antes da Play Store. A checagem de nome feita até aqui foi só uma triagem: sem conflito direto no GitHub, npm e crates.io, e domínios `compactfs` possivelmente livres (consulta de DNS, a confirmar no registrador).
 
 ## Regras do Produto
 
