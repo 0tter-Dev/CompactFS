@@ -507,6 +507,8 @@ span.crumb {
 .viewer {
   height: 100%;
   display: grid;
+  /* minmax(0, 1fr): sem isso a barra do visualizador alarga a página inteira em telas estreitas. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
   background: var(--bg);
   outline: none;
@@ -514,6 +516,7 @@ span.crumb {
 
 .viewer-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   padding: 6px 8px;
@@ -540,7 +543,7 @@ span.crumb {
 }
 
 .viewer-title {
-  flex: 1;
+  flex: 1 1 120px;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -640,6 +643,36 @@ span.crumb {
 
 .audio-player {
   width: min(560px, 90%);
+}
+
+.pdf-pages {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: var(--bg-alt);
+  outline: none;
+}
+
+.pdf-page {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  background: #fff;
+}
+
+.pdf-page canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.pdf-page-error {
+  outline: 2px solid var(--danger);
 }
 
 .pdf-frame {
