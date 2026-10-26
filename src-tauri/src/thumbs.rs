@@ -26,6 +26,7 @@ pub const TIMEOUT: Duration = Duration::from_secs(10);
 pub enum ThumbErrorCode {
     /// Sem miniatura para este tipo de arquivo (ou arquivo ilegível/corrompido).
     Unavailable,
+    #[cfg_attr(not(windows), allow(dead_code))]
     NotFound,
     /// O extrator do sistema demorou demais ou travou.
     Timeout,
@@ -67,6 +68,7 @@ pub fn encode(thumb: &Thumbnail) -> Vec<u8> {
 /// Converte BGRA (GDI) em RGBA. O alfa que o Windows devolve já é direto (não pré-multiplicado).
 /// Alguns extratores deixam o alfa todo zerado em imagens de 32 bits; sem tratar isso a miniatura
 /// ficaria invisível, então, nesse caso (e só nele), tudo vira opaco.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub fn bgra_to_rgba(mut px: Vec<u8>) -> Vec<u8> {
     let all_transparent = px.as_chunks::<4>().0.iter().all(|p| p[3] == 0);
     for p in px.as_chunks_mut::<4>().0 {
