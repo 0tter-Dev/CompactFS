@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">"CompactFS"</string>
+    <string name="main_activity_title">"CompactFS"</string>
+</resources>

@@ -1,6 +1,6 @@
 [package]
 name = "compactfs"
-version = "0.0.0"
+version = "0.0.1"
 description = "CompactFS: visualizador leve de arquivos para discos portáteis"
 edition = "2021"
 license = "MIT"

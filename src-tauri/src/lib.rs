@@ -220,6 +220,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>, started_at: Instant) -> Builde
         ])
 }
 
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let started_at = Instant::now();
 
