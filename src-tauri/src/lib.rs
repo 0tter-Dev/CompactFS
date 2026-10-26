@@ -213,15 +213,26 @@ async fn read_text(path: String) -> Result<TextContent, ViewError> {
 
 /// Abre o arquivo no app padrão do sistema (nunca programas, scripts, atalhos nem macros).
 #[tauri::command]
-async fn open_default(path: String) -> Result<(), ViewError> {
-    tauri::async_runtime::spawn_blocking(move || viewer::open_default(Path::new(&path)))
-        .await
-        .map_err(|e| {
-            ViewError::new(
-                ViewErrorCode::Other,
-                format!("Falha interna ao abrir o arquivo: {e}"),
-            )
-        })?
+async fn open_default<R: Runtime>(app: AppHandle<R>, path: String) -> Result<(), ViewError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        #[cfg(target_os = "android")]
+        {
+            viewer::check_openable(Path::new(&path))?;
+            storage::open_file(&app, Path::new(&path))
+        }
+        #[cfg(not(target_os = "android"))]
+        {
+            let _ = &app;
+            viewer::open_default(Path::new(&path))
+        }
+    })
+    .await
+    .map_err(|e| {
+        ViewError::new(
+            ViewErrorCode::Other,
+            format!("Falha interna ao abrir o arquivo: {e}"),
+        )
+    })?
 }
 
 /// Bandeira de cancelamento da busca em andamento (só existe uma por vez).

@@ -2,4 +2,6 @@
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
   <external-path name="my_images" path="." />
   <cache-path name="my_cache_images" path="." />
+  <!-- Volumes removíveis (/storage/<id>): só são entregues a outro app quando o usuário pede "Abrir no app padrão". -->
+  <root-path name="storage_volumes" path="." />
 </paths>

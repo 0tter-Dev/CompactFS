@@ -7,6 +7,8 @@ use tauri::{AppHandle, Runtime};
 use crate::browse::BrowseError;
 #[cfg(target_os = "android")]
 use crate::browse::ErrorCode;
+#[cfg(target_os = "android")]
+use crate::viewer::{ViewError, ViewErrorCode};
 
 #[derive(Serialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -79,6 +81,31 @@ pub fn request<R: Runtime>(app: &AppHandle<R>) -> Result<(), BrowseError> {
         .0
         .run_mobile_plugin::<()>("requestAccess", ())
         .map_err(plugin_error)
+}
+
+/// Abre o arquivo no app padrão do Android (intenção `VIEW` com um endereço `content://`).
+/// Quem chama já verificou que o arquivo existe e não é de um tipo bloqueado.
+#[cfg(target_os = "android")]
+pub fn open_file<R: Runtime>(app: &AppHandle<R>, path: &std::path::Path) -> Result<(), ViewError> {
+    use tauri::Manager;
+    #[derive(Serialize)]
+    struct OpenArgs<'a> {
+        path: &'a str,
+    }
+    let text = path.to_string_lossy();
+    let handle = app.state::<android::Handle<R>>();
+    handle
+        .0
+        .run_mobile_plugin::<()>("openFile", OpenArgs { path: &text })
+        .map_err(|e| {
+            let message = match e {
+                tauri::plugin::mobile::PluginInvokeError::InvokeRejected(r) => r
+                    .message
+                    .unwrap_or_else(|| "Não foi possível abrir o arquivo.".to_owned()),
+                other => other.to_string(),
+            };
+            ViewError::new(ViewErrorCode::Other, message)
+        })
 }
 
 #[cfg(not(target_os = "android"))]
