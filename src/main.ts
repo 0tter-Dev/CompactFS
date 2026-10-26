@@ -15,6 +15,7 @@ import {
   type SearchEvent,
   type SearchSummary,
 } from "./api.ts";
+import { driveTitle } from "./drive-model.ts";
 import { formatCount, formatDate, formatSize, joinPath, plural } from "./format.ts";
 import { Gallery } from "./gallery.ts";
 import { lastSegment, relativeDir, searchStatus, shouldAutoSearch } from "./search-model.ts";
@@ -266,10 +267,9 @@ function driveCard(d: Drive): HTMLElement {
 
   const body = document.createElement("span");
   body.className = "drive-body";
-  const letter = d.path.replace(/[\\/]+$/, "");
   const title = document.createElement("span");
   title.className = "drive-title";
-  title.textContent = d.label ? `${d.label} (${letter})` : letter;
+  title.textContent = driveTitle(d.path, d.label);
   const sub = document.createElement("span");
   sub.className = "drive-sub";
   body.append(title, sub);
