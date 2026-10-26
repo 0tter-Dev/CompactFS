@@ -42,6 +42,9 @@ const go = async (text) => {
   await ev(`document.getElementById('address').select()`);
   await type(text);
   await press("Enter");
+  // Espera o Enter ser resolvido: o campo fecha (deu certo) ou fica marcado como inválido (deu erro).
+  // Digitar o próximo caminho antes disso seria ignorado pelo app, de propósito.
+  await waitFor(`document.getElementById('address').hidden || document.getElementById('address').getAttribute('aria-invalid') === 'true'`, 4000);
 };
 
 try {

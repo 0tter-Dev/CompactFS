@@ -29,8 +29,17 @@ const invoke = (cmd, payload = {}) =>
 const lastCrumb = () => ev(`[...document.querySelectorAll('#crumbs .crumb')].pop()?.textContent`);
 const crumbs = () => ev(`[...document.querySelectorAll('#crumbs .crumb')].map(b => b.textContent).join(' > ')`);
 const tileNames = () => ev(`[...document.querySelectorAll('#grid .tile .tname')].map(n => n.textContent.trim())`);
-const openTile = (name) =>
-  ev(`(() => { const t = [...document.querySelectorAll('#grid .tile')].find(t => t.querySelector('.tname')?.textContent.trim() === ${JSON.stringify(name)}); if (!t) return false; t.scrollIntoView(); t.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); return true; })()`);
+/** Duplo toque no tile `name`. A grade é virtualizada: só os tiles perto da tela existem, então rola até achar. */
+const openTile = async (name) => {
+  for (let i = 0; i < 60; i++) {
+    const found = await ev(`(() => { const t = [...document.querySelectorAll('#grid .tile')].find(t => t.querySelector('.tname')?.textContent.trim() === ${JSON.stringify(name)}); if (!t) return false; t.scrollIntoView(); t.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); return true; })()`);
+    if (found) return true;
+    const moved = await ev(`(() => { const g = document.getElementById('grid'); const before = g.scrollTop; g.scrollTop += Math.max(200, g.clientHeight * 0.8); return g.scrollTop > before; })()`);
+    await sleep(250);
+    if (!moved) return false;
+  }
+  return false;
+};
 const baseName = (p) => p.split("/").pop();
 const dirName = (p) => p.slice(0, p.lastIndexOf("/"));
 
@@ -66,8 +75,7 @@ if (imagePath || pdfPath) {
   // navega até a pasta pelos toques, nível a nível
   const levels = folder.replace("/storage/emulated/0/", "").split("/").filter(Boolean);
   for (const level of levels) {
-    await waitFor(`[...document.querySelectorAll('#grid .tile .tname')].some(n => n.textContent.trim() === ${JSON.stringify(level)})`, 8000);
-    await sleep(300);
+    await sleep(500);
     const ok = await openTile(level);
     check(`abre a pasta ${level} pelo toque`, ok);
     if (!ok) break;
