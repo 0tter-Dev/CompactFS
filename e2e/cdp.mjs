@@ -17,11 +17,16 @@ export async function connect() {
   let id = 0;
   const pending = new Map();
   const errors = [];
+  const listeners = new Map();
+  /** Assina um evento do protocolo (ex.: "Fetch.requestPaused"). */
+  const on = (method, handler) => listeners.set(method, [...(listeners.get(method) ?? []), handler]);
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data);
     if (m.id && pending.has(m.id)) {
       pending.get(m.id)(m);
       pending.delete(m.id);
+    } else if (m.method && listeners.has(m.method)) {
+      for (const h of listeners.get(m.method)) h(m.params);
     } else if (m.method === "Runtime.exceptionThrown") {
       errors.push(m.params.exceptionDetails?.exception?.description ?? "exceção");
     } else if (m.method === "Runtime.consoleAPICalled" && ["error", "warning"].includes(m.params.type)) {
@@ -36,6 +41,9 @@ export async function connect() {
       ws.send(JSON.stringify({ id: i, method, params }));
     });
   await send("Runtime.enable");
+  // Sem isso, outra janela tomando o foco do Windows no meio do teste faz a página perder o foco, e o
+  // campo de endereço (que cancela a edição ao perder o foco) joga fora o que o teste digitou.
+  await send("Emulation.setFocusEmulationEnabled", { enabled: true });
 
   const ev = async (expression) => {
     const r = await send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true });
@@ -83,5 +91,5 @@ export async function connect() {
     ws.close();
     process.exit(failed === 0 ? 0 : 1);
   };
-  return { ev, send, sleep, waitFor, press, type, check, finish, errors };
+  return { ev, send, on, sleep, waitFor, press, type, check, finish, errors };
 }
