@@ -139,7 +139,7 @@ Em aberto:
 
 - Metas para **HD mecânico** e disco externo, que só podem ser definidas depois de medir num.
 - Viabilidade de executar de dentro de um disco externo em máquinas de terceiros (SmartScreen, antivírus, WebView2 disponível): validar com testes manuais quando houver um disco externo e outra máquina à mão.
-- Android: o protótipo usa o acesso total aos arquivos e só foi validado no armazenamento interno. Falta testar com um disco externo (exFAT, FAT32 e NTFS) e decidir se o modo SAF será necessário (depende da revisão da Play Store). **Metas próprias do Android** (APK, abertura, memória) ainda não foram definidas: as medições acima são a base; os tetos de 5 MiB do executável são do Windows (o APK já tem 5,70 MiB).
+- Android: o protótipo usa o acesso total aos arquivos e só foi validado no armazenamento interno. Falta testar com um disco externo (exFAT, FAT32 e NTFS) e decidir se o modo SAF será necessário (depende da revisão da Play Store). As metas do Android são as mesmas do Windows, com o APK em até 7,5 MiB (ver "Metas de leveza e velocidade"); falta medir a busca numa árvore comparável e a primeira miniatura isolada.
 - iOS: sem aparelho nem Mac por enquanto; fica como planejamento futuro.
 - Busca no Android: percorrer o armazenamento inteiro leva alguns segundos; ler várias pastas em paralelo pode reduzir, a avaliar.
 
@@ -147,19 +147,23 @@ Em aberto:
 
 **Aprovadas pelo mantenedor.** Definidas a partir das medições acima (SSD interno, uma máquina), com folga para variação de máquina. Servem como teto: passar de um deles pede uma justificativa registrada aqui, não um ajuste silencioso.
 
-| Meta | Teto | Hoje |
-| --- | --- | --- |
-| Tamanho do `compactfs.exe` | 5 MiB | 3,08 MiB |
-| Interface pronta (perfil do WebView2 já criado) | 500 ms | 270 a 300 ms |
-| Listar uma pasta com 50.000 arquivos (do clique à lista na tela) | 500 ms | cerca de 170 ms |
-| Busca numa árvore de 50.000+ arquivos, poucos resultados | 500 ms | 70 a 80 ms |
-| Primeira miniatura de uma pasta de fotos | 500 ms | 140 a 160 ms |
-| Memória parado (app + WebView2): working set / privada | 500 MB / 250 MB | 355 MB / 167 MB |
-| Memória na pior tela medida (foto de 12 megapixels aberta) | 1.000 MB / 500 MB | 515 MB / 320 MB |
+**Os mesmos tetos valem para o Windows e para o Android**, porque as medições dos dois ficaram próximas. **A única diferença é o tamanho do pacote:** 5 MiB para o executável do Windows e **7,5 MiB para o APK do Android** (o APK carrega o código Kotlin, o AndroidX e os recursos do sistema). "Hoje" do Android: Galaxy S22, Android 16, APK de lançamento.
 
-- **Verificado pela CI:** só o tamanho do executável (o build falha acima de 5 MiB). O restante é medido à mão com os testes de ponta a ponta, que não estão na CI; um valor acima do teto numa medição manual deve virar um item em "Em aberto".
-- A maior parte da memória é do WebView2, não do app: reduzir de verdade pede outra estratégia (por exemplo, menos processos), fora do que a fase 1 prevê.
-- Os tetos de tempo valem para SSD. Para **HD mecânico** e disco externo não há meta ainda, porque nunca foi medido.
+| Meta | Teto (Windows e Android) | Windows hoje | Android hoje |
+| --- | --- | --- | --- |
+| Tamanho do pacote | **5 MiB** (`compactfs.exe`) / **7,5 MiB** (APK) | 3,13 MiB | 5,70 MiB |
+| Interface pronta (perfil do WebView já criado) | 500 ms | 270 a 300 ms | 226 a 258 ms |
+| Listar uma pasta com 50.000 arquivos (do clique à lista na tela) | 500 ms | cerca de 170 ms | não medido (31 itens: 27 ms) |
+| Busca numa árvore de 50.000+ arquivos, poucos resultados | 500 ms | 70 a 80 ms | **sem medida comparável; em risco** (ver abaixo) |
+| Primeira miniatura de uma pasta de fotos | 500 ms | 140 a 160 ms | não medida isolada (11 de 11 prontas em menos de 2,5 s) |
+| Memória parado (app + WebView): working set (RSS no Android) / privada (PSS no Android) | 500 MB / 250 MB | 355 MB / 167 MB | ~368 MB / ~199 MB |
+| Memória na pior tela medida (foto de 12 megapixels aberta; PDF no Android) | 1.000 MB / 500 MB | 515 MB / 320 MB | 352 MB (PSS, build de depuração, só indicativo) |
+
+- **Verificado pela CI:** só o tamanho do executável do Windows (o build falha acima de 5 MiB). O APK **não** é gerado na CI, então o teto de 7,5 MiB é conferido à mão, a cada mudança relevante no Android. O restante é medido à mão com os testes de ponta a ponta, que não estão na CI; um valor acima do teto numa medição manual deve virar um item em "Em aberto".
+- **Busca no Android é o ponto em risco:** o Android lê cada pasta cerca de 85 vezes mais devagar que o Windows (cerca de 12 ms por pasta contra cerca de 0,14 ms; 383 pastas levaram 4,6 a 5,3 s). Se uma árvore de 50.000 arquivos tiver muitas pastas, o teto de 500 ms não será cumprido. Falta medir numa árvore comparável (e avaliar ler várias pastas em paralelo) antes de afirmar que o teto vale no Android.
+- A maior parte da memória é do WebView, não do app: reduzir de verdade pede outra estratégia (por exemplo, menos processos), fora do que a fase 1 prevê.
+- Os tetos de tempo valem para SSD e para o armazenamento interno do celular. Para **HD mecânico** e disco externo não há meta ainda, porque nunca foi medido.
+- Unidade: o teto de 7,5 do APK foi combinado como "7,5 MB" e está registrado em **MiB**, como as demais metas de tamanho (diferença de menos de 5% entre as duas leituras).
 
 ## Stack
 
