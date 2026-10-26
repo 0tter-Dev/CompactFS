@@ -52,6 +52,12 @@ jobs:
       - name: clippy
         run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 
+      # O núcleo também precisa continuar compilando para o Android (só confere; o APK não é gerado na CI).
+      - name: clippy (Android target, core only)
+        run: |
+          rustup target add aarch64-linux-android
+          cargo clippy --manifest-path src-tauri/Cargo.toml --lib --target aarch64-linux-android -- -D warnings
+
       - name: Tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
