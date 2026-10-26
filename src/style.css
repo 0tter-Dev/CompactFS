@@ -930,7 +930,7 @@ span.crumb {
 
 /* ---------- telas estreitas e de toque ---------- */
 
-/* Em até 720 px a barra vira três linhas: navegação e modo de exibição; caminho; busca e ocultos. */
+/* Em até 720 px a barra vira quatro linhas: navegação e modo de exibição; caminho; busca; opções. */
 @media (max-width: 720px) {
   .toolbar > button {
     order: 1;
@@ -950,13 +950,18 @@ span.crumb {
 
   .search {
     order: 4;
-    flex: 1 1 140px;
+    flex: 1 1 100%;
     width: auto;
     min-width: 0;
   }
 
+
+  /* As duas caixas dividem a linha; o texto completo quebra em duas linhas se precisar. */
   .toggle {
     order: 5;
+    flex: 1 1 calc(50% - 4px);
+    white-space: normal;
+    line-height: 1.25;
   }
 
   .access-banner {
@@ -1004,6 +1009,7 @@ span.crumb {
   }
 
   .toggle input {
+    flex: 0 0 auto;
     width: 22px;
     height: 22px;
   }
