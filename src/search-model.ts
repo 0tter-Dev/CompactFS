@@ -1,5 +1,5 @@
 import { formatCount, plural } from "./format.ts";
-import type { SearchSummary } from "./api.ts";
+import type { Crumb, SearchSummary } from "./api.ts";
 
 /** A busca roda sozinha a partir deste número de caracteres (com menos, só ao apertar Enter). */
 export const MIN_AUTO_CHARS = 2;
@@ -31,6 +31,15 @@ export function relativeDir(root: string, dir: string, separator: string): strin
 export function lastSegment(path: string): string {
   const parts = path.split(/[\\/]/).filter((p) => p !== "");
   return parts.length > 0 ? (parts[parts.length - 1] as string) : path;
+}
+
+/**
+ * Nome da pasta onde a busca começou. Usa o nome da trilha quando ele é o da própria pasta: no Android
+ * a raiz do armazenamento é "Armazenamento interno", não o último nível do caminho (`0`).
+ */
+export function scopeName(root: string, crumbs: Crumb[]): string {
+  const last = crumbs[crumbs.length - 1];
+  return last && last.path === root ? last.name : lastSegment(root);
 }
 
 export interface SearchProgress {

@@ -24,7 +24,7 @@ import { addressText, navigationTarget } from "./address-model.ts";
 import { driveTitle } from "./drive-model.ts";
 import { formatCount, formatDate, formatSize, joinPath, plural } from "./format.ts";
 import { Gallery } from "./gallery.ts";
-import { lastSegment, relativeDir, searchStatus, shouldAutoSearch } from "./search-model.ts";
+import { relativeDir, scopeName, searchStatus, shouldAutoSearch } from "./search-model.ts";
 import { ThumbLoader } from "./thumbs.ts";
 import { Viewer, type ViewerItem } from "./viewer.ts";
 import { viewerKindOf } from "./viewer-kind.ts";
@@ -203,7 +203,10 @@ function updateNavButtons(): void {
   els.up.disabled = current === null || current.kind === "computer";
   const inFolder = current?.kind === "dir";
   els.search.disabled = !inFolder;
-  els.search.placeholder = inFolder ? "Buscar (Ctrl+F)" : "Abra uma pasta para buscar";
+  // No toque não há Ctrl+F, e o campo é estreito: o texto precisa caber.
+  const touch = window.matchMedia("(pointer: coarse)").matches;
+  els.search.placeholder = inFolder ? (touch ? "Buscar" : "Buscar (Ctrl+F)") : "Abra uma pasta";
+  els.search.title = inFolder ? "Buscar por nome nesta pasta e nas subpastas" : "Abra uma pasta para poder buscar";
 }
 
 // ---------- trilha de navegação ----------
@@ -727,7 +730,7 @@ function updateSearchBar(): void {
   }
   // Só o nome da pasta na faixa (o caminho completo vai no tooltip): um caminho longo empurrava os
   // botões para fora da janela.
-  els.searchInfo.textContent = `Busca em ${lastSegment(search.root)}`;
+  els.searchInfo.textContent = `Busca em ${scopeName(search.root, listing?.breadcrumbs ?? [])}`;
   els.searchInfo.title = search.root;
   const entry = visible[selected];
   els.searchWhere.textContent = entry?.dir

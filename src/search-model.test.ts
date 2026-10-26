@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { lastSegment, relativeDir, searchStatus, shouldAutoSearch } from "./search-model.ts";
+import { lastSegment, scopeName, relativeDir, searchStatus, shouldAutoSearch } from "./search-model.ts";
 
 const summary = (over: Record<string, unknown> = {}) => ({
   scannedDirs: 12,
@@ -68,4 +68,18 @@ test("lastSegment devolve só o nome da pasta", () => {
   assert.equal(lastSegment("/home/ana"), "ana");
   assert.equal(lastSegment("/"), "/");
   assert.equal(lastSegment(""), "");
+});
+
+test("scopeName usa o nome da trilha quando ele é o da pasta da busca", () => {
+  const crumbs = [
+    { name: "Armazenamento interno", path: "/storage/emulated/0" },
+    { name: "DCIM", path: "/storage/emulated/0/DCIM" },
+  ];
+  assert.equal(scopeName("/storage/emulated/0", crumbs.slice(0, 1)), "Armazenamento interno");
+  assert.equal(scopeName("/storage/emulated/0/DCIM", crumbs), "DCIM");
+});
+
+test("scopeName cai para o último nível do caminho quando a trilha não bate", () => {
+  assert.equal(scopeName("D:\\fotos\\2024", []), "2024");
+  assert.equal(scopeName("D:\\fotos", [{ name: "Outra", path: "D:\\outra" }]), "fotos");
 });
