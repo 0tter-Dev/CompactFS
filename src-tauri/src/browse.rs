@@ -183,6 +183,21 @@ fn is_hidden(name: &str, _meta: &fs::Metadata) -> bool {
     name.starts_with('.')
 }
 
+/// Se a entrada é oculta, sem ler os metadados completos onde isso custa um acesso ao disco.
+/// No Windows os atributos já vêm com a listagem; nos outros sistemas basta o nome.
+#[cfg(windows)]
+pub(crate) fn is_hidden_entry(dir_entry: &fs::DirEntry, name: &str) -> bool {
+    dir_entry
+        .metadata()
+        .ok()
+        .is_some_and(|m| is_hidden(name, &m))
+}
+
+#[cfg(not(windows))]
+pub(crate) fn is_hidden_entry(_dir_entry: &fs::DirEntry, name: &str) -> bool {
+    name.starts_with('.')
+}
+
 pub(crate) fn read_entry(dir_entry: &fs::DirEntry) -> Option<Entry> {
     let name = dir_entry.file_name().to_string_lossy().into_owned();
     let file_type = dir_entry.file_type().ok()?;

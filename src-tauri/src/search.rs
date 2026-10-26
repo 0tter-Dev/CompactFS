@@ -14,7 +14,7 @@ use std::{
 
 use serde::Serialize;
 
-use crate::browse::{self, BrowseError, Entry, EntryKind, ErrorCode};
+use crate::browse::{self, BrowseError, Entry, ErrorCode};
 
 /// Mais que isso deixa de ser uma busca útil: pede para refinar em vez de sufocar a interface.
 pub const MAX_RESULTS: usize = 10_000;
@@ -255,18 +255,24 @@ pub fn search(
                 break 'walk;
             }
             let Ok(dir_entry) = item else { continue };
-            let Some(entry) = browse::read_entry(&dir_entry) else {
+            // Para decidir se entra na pasta e se o nome casa, bastam o nome e o tipo (que vêm com a
+            // listagem). Os metadados completos (tamanho, data) só são lidos para o que casa: em
+            // armazenamentos lentos, como o do Android, um acesso por entrada custava segundos.
+            let Ok(file_type) = dir_entry.file_type() else {
                 continue;
             };
             summary.scanned_entries += 1;
-            if entry.hidden && !show_hidden {
+            let name = dir_entry.file_name().to_string_lossy().into_owned();
+            if !show_hidden && browse::is_hidden_entry(&dir_entry, &name) {
                 continue; // oculto: nem aparece nem é percorrido
             }
-            if entry.kind == EntryKind::Dir && !entry.is_link {
+            if file_type.is_dir() && !file_type.is_symlink() {
                 queue.push_back(dir_entry.path());
             }
-            if query.matches(&entry.name) {
-                here.push(entry);
+            if query.matches(&name) {
+                if let Some(entry) = browse::read_entry(&dir_entry) {
+                    here.push(entry);
+                }
             }
         }
 
@@ -298,6 +304,7 @@ pub fn search(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::browse::EntryKind;
     use std::{collections::HashSet, fs::File};
 
     /// Roda a busca e junta todos os resultados, como a interface faria.
