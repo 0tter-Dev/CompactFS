@@ -28,6 +28,7 @@ import { relativeDir, scopeName, searchStatus, shouldAutoSearch } from "./search
 import { ThumbLoader } from "./thumbs.ts";
 import { Viewer, type ViewerItem } from "./viewer.ts";
 import { viewerKindOf } from "./viewer-kind.ts";
+import { openAction } from "./open-policy.ts";
 import { moveSelection, scrollTopToReveal, visibleRange, type GridKey, type NavKey } from "./viewport.ts";
 import "./style.css";
 
@@ -62,6 +63,7 @@ const els = {
   accessAllow: $<HTMLButtonElement>("access-allow"),
   address: $<HTMLInputElement>("address"),
   showHidden: $<HTMLInputElement>("show-hidden"),
+  alwaysDefault: $<HTMLInputElement>("always-default"),
   main: $<HTMLElement>("main"),
   computer: $<HTMLElement>("computer"),
   folder: $<HTMLElement>("folder"),
@@ -115,6 +117,28 @@ function saveViewMode(mode: ViewMode): void {
 }
 
 let viewMode: ViewMode = loadViewMode();
+
+// "Sempre abrir com o app padrão": escolha explícita do usuário, guardada no dispositivo (como o modo de exibição).
+const ALWAYS_DEFAULT_KEY = "cfs.alwaysDefault";
+
+function loadAlwaysDefault(): boolean {
+  try {
+    return localStorage.getItem(ALWAYS_DEFAULT_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function saveAlwaysDefault(value: boolean): void {
+  try {
+    localStorage.setItem(ALWAYS_DEFAULT_KEY, value ? "1" : "0");
+  } catch {
+    // sem persistência: a opção vale até fechar o app
+  }
+}
+
+let alwaysDefault = loadAlwaysDefault();
+els.alwaysDefault.checked = alwaysDefault;
 const loader = new ThumbLoader();
 const gallery = new Gallery(els.grid, els.gridSizer, loader, {
   onSelect: (index) => setSelected(index, false),
@@ -555,7 +579,9 @@ function renderFolder(next: Listing, selectName: string | null): void {
   selected = found >= 0 ? found : visible.length > 0 ? 0 : -1;
   showItems();
   updateFolderStatus();
-  activeScroller().focus({ preventScroll: true });
+  // Em disco lento o usuário pode já ter reaberto a barra de endereço enquanto a pasta carregava:
+  // tirar o foco dela cancelaria a edição e perderia o que ele digitou.
+  if (!editingAddress) activeScroller().focus({ preventScroll: true });
 }
 
 function showError(err: BrowseError): void {
@@ -708,13 +734,19 @@ function openWithDefaultShortcut(e: KeyboardEvent): boolean {
 
 async function open(entry: Entry): Promise<void> {
   if (!listing) return;
-  if (entry.kind === "dir") {
-    await go({ kind: "dir", path: pathOf(entry) });
-  } else if (entry.kind === "file" && viewerKindOf(entry.name)) {
-    openViewer(entry);
-  } else {
-    // Sem visualizador próprio (Office, TIFF...): o app padrão do sistema abre; programas e scripts, nunca.
-    await openInDefaultApp(entry);
+  const hasViewer = entry.kind === "file" && viewerKindOf(entry.name) !== null;
+  switch (openAction(entry.kind, hasViewer, alwaysDefault)) {
+    case "folder":
+      await go({ kind: "dir", path: pathOf(entry) });
+      break;
+    case "viewer":
+      openViewer(entry);
+      break;
+    case "default":
+      // Sem visualizador próprio (Office, TIFF...) ou com "Sempre abrir com o app padrão": o app padrão
+      // do sistema abre; programas e scripts, nunca.
+      await openInDefaultApp(entry);
+      break;
   }
 }
 
@@ -950,6 +982,11 @@ els.back.addEventListener("click", () => void back());
 els.forward.addEventListener("click", () => void forward());
 els.up.addEventListener("click", () => void up());
 els.refresh.addEventListener("click", () => void refresh());
+
+els.alwaysDefault.addEventListener("change", () => {
+  alwaysDefault = els.alwaysDefault.checked;
+  saveAlwaysDefault(alwaysDefault);
+});
 
 els.showHidden.addEventListener("change", () => {
   showHidden = els.showHidden.checked;
