@@ -77,6 +77,32 @@ button:focus-visible,
   border-bottom: 1px solid var(--border);
 }
 
+.access-banner {
+  flex: 1 1 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+  padding: 6px 10px;
+  background: var(--accent-bg);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.access-banner span {
+  flex: 1 1 auto;
+}
+
+.access-banner button {
+  flex: 0 0 auto;
+  padding: 4px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--bg);
+  cursor: pointer;
+  font-weight: 600;
+}
+
 .toolbar > button {
   width: 32px;
   height: 30px;

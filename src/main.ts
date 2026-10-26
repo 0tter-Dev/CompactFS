@@ -4,7 +4,9 @@ import {
   cancelSearch,
   listDrives,
   openDefault,
+  requestStorageAccess,
   searchNames,
+  storageAccess,
   toBrowseError,
   toViewError,
   type BrowseError,
@@ -15,6 +17,7 @@ import {
   type SearchEvent,
   type SearchSummary,
 } from "./api.ts";
+import { needsAccessPrompt } from "./access-model.ts";
 import { driveTitle } from "./drive-model.ts";
 import { formatCount, formatDate, formatSize, joinPath, plural } from "./format.ts";
 import { Gallery } from "./gallery.ts";
@@ -52,6 +55,8 @@ const els = {
   up: $<HTMLButtonElement>("up"),
   refresh: $<HTMLButtonElement>("refresh"),
   crumbs: $<HTMLElement>("crumbs"),
+  accessBanner: $<HTMLElement>("access-banner"),
+  accessAllow: $<HTMLButtonElement>("access-allow"),
   showHidden: $<HTMLInputElement>("show-hidden"),
   main: $<HTMLElement>("main"),
   computer: $<HTMLElement>("computer"),
@@ -810,6 +815,32 @@ function searchShortcut(e: KeyboardEvent): boolean {
   return false;
 }
 
+// ---------- acesso a todos os arquivos (Android) ----------
+
+let accessMissing = false;
+
+/** Mostra a faixa de pedido quando falta a permissão; ao ser concedida, recarrega o local atual. */
+async function refreshStorageAccess(): Promise<void> {
+  let missing: boolean;
+  try {
+    missing = needsAccessPrompt(await storageAccess());
+  } catch {
+    return; // sem a informação, não incomoda o usuário
+  }
+  els.accessBanner.hidden = !missing;
+  if (accessMissing && !missing) void refresh();
+  accessMissing = missing;
+}
+
+els.accessAllow.addEventListener("click", () => {
+  requestStorageAccess().catch((e) => flashStatus(toBrowseError(e).message));
+});
+// A tela de permissões do sistema devolve o foco ao app: é a hora de conferir de novo.
+window.addEventListener("focus", () => void refreshStorageAccess());
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") void refreshStorageAccess();
+});
+
 // ---------- eventos ----------
 
 els.search.addEventListener("input", () => {
@@ -949,3 +980,4 @@ appInfo()
 
 applyViewMode();
 void go({ kind: "computer" });
+void refreshStorageAccess();

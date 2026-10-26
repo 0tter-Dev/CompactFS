@@ -123,6 +123,17 @@ export const cancelSearch = (): Promise<void> => invoke<void>("cancel_search");
 
 export const listDrives = (): Promise<Drive[]> => invoke<Drive[]>("list_drives");
 
+/** `supported` é falso onde não há o que pedir (Windows, Android antes do 11). */
+export interface StorageAccess {
+  supported: boolean;
+  granted: boolean;
+}
+
+export const storageAccess = (): Promise<StorageAccess> => invoke<StorageAccess>("storage_access");
+
+/** Abre a tela do sistema onde o usuário concede o acesso a todos os arquivos (Android). */
+export const requestStorageAccess = (): Promise<void> => invoke<void>("request_storage_access");
+
 export const listDir = (path: string): Promise<Listing> => invoke<Listing>("list_dir", { path });
 
 /** O núcleo rejeita com `{ code, message }`; qualquer outra coisa vira um erro genérico. */
