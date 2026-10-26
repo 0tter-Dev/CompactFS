@@ -12,6 +12,7 @@ use tauri::{ipc::Channel, AppHandle, Builder, Manager, Runtime, State};
 
 mod browse;
 mod drives;
+mod media;
 mod search;
 mod storage;
 mod thumbs;
@@ -21,6 +22,7 @@ mod webview2;
 
 use browse::{BrowseError, ErrorCode, Listing};
 use drives::Drive;
+use media::PdfInfo;
 use search::{Query, SearchEvent, SearchSummary};
 use storage::StorageAccess;
 use thumbs::{ThumbError, ThumbErrorCode};
@@ -108,17 +110,60 @@ async fn request_storage_access<R: Runtime>(app: AppHandle<R>) -> Result<(), Bro
 /// Miniatura de um arquivo, em binário: largura e altura (u32 little-endian) e depois o RGBA.
 /// Roda fora da thread principal; a extração é limitada em paralelismo e em tempo (ver `thumbs`).
 #[tauri::command]
-async fn thumbnail(path: String, size: u32) -> Result<tauri::ipc::Response, ThumbError> {
-    let thumb =
-        tauri::async_runtime::spawn_blocking(move || thumbs::thumbnail(Path::new(&path), size))
-            .await
-            .map_err(|e| {
-                ThumbError::new(
-                    ThumbErrorCode::Other,
-                    format!("Falha interna ao gerar a miniatura: {e}"),
-                )
-            })??;
+async fn thumbnail<R: Runtime>(
+    app: AppHandle<R>,
+    path: String,
+    size: u32,
+) -> Result<tauri::ipc::Response, ThumbError> {
+    let thumb = tauri::async_runtime::spawn_blocking(move || {
+        media::thumbnail(&app, Path::new(&path), size)
+    })
+    .await
+    .map_err(|e| {
+        ThumbError::new(
+            ThumbErrorCode::Other,
+            format!("Falha interna ao gerar a miniatura: {e}"),
+        )
+    })??;
     Ok(tauri::ipc::Response::new(thumbs::encode(&thumb)))
+}
+
+/// Páginas de um PDF quando o app mesmo as desenha (Android). `None` no Windows, onde o
+/// visualizador nativo do WebView2 mostra o PDF.
+#[tauri::command]
+async fn pdf_info<R: Runtime>(
+    app: AppHandle<R>,
+    path: String,
+) -> Result<Option<PdfInfo>, ViewError> {
+    tauri::async_runtime::spawn_blocking(move || media::pdf_info(&app, Path::new(&path)))
+        .await
+        .map_err(|e| {
+            ViewError::new(
+                ViewErrorCode::Other,
+                format!("Falha interna ao abrir o PDF: {e}"),
+            )
+        })?
+}
+
+/// Uma página do PDF em JPEG (binário). Só no Android.
+#[tauri::command]
+async fn pdf_page<R: Runtime>(
+    app: AppHandle<R>,
+    path: String,
+    page: u32,
+    width: u32,
+) -> Result<tauri::ipc::Response, ViewError> {
+    let jpeg = tauri::async_runtime::spawn_blocking(move || {
+        media::pdf_page(&app, Path::new(&path), page, width)
+    })
+    .await
+    .map_err(|e| {
+        ViewError::new(
+            ViewErrorCode::Other,
+            format!("Falha interna ao desenhar a página: {e}"),
+        )
+    })??;
+    Ok(tauri::ipc::Response::new(jpeg))
 }
 
 /// Libera o arquivo para o protocolo de arquivos (`asset:`), que alimenta imagem, vídeo, áudio e PDF.
@@ -233,7 +278,7 @@ fn cancel_search(control: State<'_, SearchControl>) {
 #[doc(hidden)]
 pub fn configure<R: Runtime>(builder: Builder<R>, started_at: Instant) -> Builder<R> {
     #[cfg(target_os = "android")]
-    let builder = builder.plugin(storage::init());
+    let builder = builder.plugin(storage::init()).plugin(media::init());
     builder
         .manage(StartedAt(started_at))
         .manage(SearchControl::default())
@@ -248,7 +293,9 @@ pub fn configure<R: Runtime>(builder: Builder<R>, started_at: Instant) -> Builde
             search_names,
             cancel_search,
             storage_access,
-            request_storage_access
+            request_storage_access,
+            pdf_info,
+            pdf_page
         ])
 }
 
