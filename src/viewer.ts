@@ -1,7 +1,8 @@
-import { allowView, convertFileSrc, openDefault, readText, toViewError } from "./api.ts";
+import { allowView, convertFileSrc, openDefault, pdfInfo, readText, toViewError, type PdfInfo } from "./api.ts";
 import { formatSize } from "./format.ts";
 import { parseMarkdown } from "./markdown.ts";
 import { renderMarkdown } from "./markdown-dom.ts";
+import { PdfPages } from "./pdf-pages.ts";
 import { usesAssetProtocol, type ViewerKind } from "./viewer-kind.ts";
 import { clampPan, fitScale, fitted, zoomAt, zoomLabel, type ZoomState } from "./zoom.ts";
 
@@ -120,7 +121,10 @@ export class Viewer {
     if (!this.isOpen || e.ctrlKey || e.metaKey) return false;
     const target = e.target as HTMLElement | null;
     // Dentro de um vídeo ou áudio, as setas mexem no tempo e no volume, não trocam de arquivo.
-    const inMedia = target instanceof HTMLMediaElement || target instanceof HTMLIFrameElement;
+    const inMedia =
+      target instanceof HTMLMediaElement ||
+      target instanceof HTMLIFrameElement ||
+      (target instanceof HTMLElement && target.closest(".pdf-pages") !== null);
 
     if (e.key === "Escape" || (e.key === "Backspace" && !inMedia)) {
       this.close();
@@ -190,7 +194,8 @@ export class Viewer {
     this.setNote("");
 
     try {
-      if (usesAssetProtocol(item.kind)) {
+      // O PDF desenhado pelo núcleo (Android) não precisa do protocolo de arquivos.
+      if (usesAssetProtocol(item.kind) && item.kind !== "pdf") {
         await allowView(item.path);
         if (token !== this.token) return;
       }
@@ -203,7 +208,7 @@ export class Viewer {
           this.showMedia(item, token);
           break;
         case "pdf":
-          this.showPdf(item);
+          await this.showPdf(item, token);
           break;
         case "text":
         case "markdown":
@@ -371,12 +376,31 @@ export class Viewer {
     media.src = convertFileSrc(item.path);
   }
 
-  private showPdf(item: ViewerItem): void {
+  private async showPdf(item: ViewerItem, token: number): Promise<void> {
+    const info = await pdfInfo(item.path);
+    if (token !== this.token) return;
+    if (info) {
+      this.showPdfPages(item, info);
+      return;
+    }
+    // Windows: visualizador de PDF nativo do WebView2, dentro de um quadro.
+    await allowView(item.path);
+    if (token !== this.token) return;
     const frame = element("iframe", "pdf-frame");
     frame.title = item.name;
     this.els.body.replaceChildren(frame);
     frame.src = convertFileSrc(item.path);
     this.setNote(item.size !== null ? formatSize(item.size) : "");
+  }
+
+  /** Android: o núcleo desenha as páginas (o WebView não tem visualizador de PDF). */
+  private showPdfPages(item: ViewerItem, info: PdfInfo): void {
+    const pages = new PdfPages(item.path, info, item.name);
+    this.els.body.replaceChildren(pages.root);
+    this.cleanup = () => pages.dispose();
+    const count = `${info.pages} ${info.pages === 1 ? "página" : "páginas"}`;
+    this.setNote(item.size !== null ? `${count} · ${formatSize(item.size)}` : count);
+    pages.root.focus({ preventScroll: true });
   }
 
   private async showText(item: ViewerItem, token: number): Promise<void> {

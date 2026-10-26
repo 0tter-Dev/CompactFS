@@ -123,6 +123,30 @@ export const cancelSearch = (): Promise<void> => invoke<void>("cancel_search");
 
 export const listDrives = (): Promise<Drive[]> => invoke<Drive[]>("list_drives");
 
+/** `supported` é falso onde não há o que pedir (Windows, Android antes do 11). */
+export interface StorageAccess {
+  supported: boolean;
+  granted: boolean;
+}
+
+export const storageAccess = (): Promise<StorageAccess> => invoke<StorageAccess>("storage_access");
+
+/** Páginas de um PDF que o próprio núcleo desenha (Android); `null` no Windows, que usa o visualizador nativo. */
+export interface PdfInfo {
+  pages: number;
+  width: number;
+  height: number;
+}
+
+export const pdfInfo = (path: string): Promise<PdfInfo | null> => invoke<PdfInfo | null>("pdf_info", { path });
+
+/** Uma página do PDF em JPEG (só no Android). */
+export const pdfPage = (path: string, page: number, width: number): Promise<ArrayBuffer> =>
+  invoke<ArrayBuffer>("pdf_page", { path, page, width });
+
+/** Abre a tela do sistema onde o usuário concede o acesso a todos os arquivos (Android). */
+export const requestStorageAccess = (): Promise<void> => invoke<void>("request_storage_access");
+
 export const listDir = (path: string): Promise<Listing> => invoke<Listing>("list_dir", { path });
 
 /** Para onde o texto digitado na barra de endereço aponta (só consulta metadados). */

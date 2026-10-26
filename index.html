@@ -15,10 +15,14 @@
       <input id="address" class="address" type="text" role="textbox" autocomplete="off" spellcheck="false" aria-label="Endereço: digite um caminho e pressione Enter" hidden />
       <input id="search" class="search" type="text" role="searchbox" autocomplete="off" spellcheck="false" placeholder="Buscar (Ctrl+F)" aria-label="Buscar por nome nesta pasta e nas subpastas" />
       <div class="seg" role="group" aria-label="Modo de exibição">
-        <button id="view-grid" type="button" aria-pressed="true" title="Galeria (miniaturas)">▦ Galeria</button>
-        <button id="view-list" type="button" aria-pressed="false" title="Lista (detalhes)">☰ Lista</button>
+        <button id="view-grid" type="button" aria-pressed="true" title="Galeria (miniaturas)" aria-label="Galeria"><span aria-hidden="true">▦</span><span class="seg-text" aria-hidden="true"> Galeria</span></button>
+        <button id="view-list" type="button" aria-pressed="false" title="Lista (detalhes)" aria-label="Lista"><span aria-hidden="true">☰</span><span class="seg-text" aria-hidden="true"> Lista</span></button>
       </div>
       <label class="toggle"><input id="show-hidden" type="checkbox" /> Mostrar ocultos</label>
+      <div id="access-banner" class="access-banner" role="status" hidden>
+        <span>Para ver todos os arquivos, o CompactFS precisa da permissão &ldquo;Acesso a todos os arquivos&rdquo;.</span>
+        <button id="access-allow" type="button">Permitir acesso</button>
+      </div>
     </header>
 
     <main id="main">

@@ -12,6 +12,8 @@ use std::{
 
 use serde::Serialize;
 
+use crate::drives;
+
 #[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum EntryKind {
@@ -181,6 +183,21 @@ fn is_hidden(name: &str, _meta: &fs::Metadata) -> bool {
     name.starts_with('.')
 }
 
+/// Se a entrada é oculta, sem ler os metadados completos onde isso custa um acesso ao disco.
+/// No Windows os atributos já vêm com a listagem; nos outros sistemas basta o nome.
+#[cfg(windows)]
+pub(crate) fn is_hidden_entry(dir_entry: &fs::DirEntry, name: &str) -> bool {
+    dir_entry
+        .metadata()
+        .ok()
+        .is_some_and(|m| is_hidden(name, &m))
+}
+
+#[cfg(not(windows))]
+pub(crate) fn is_hidden_entry(_dir_entry: &fs::DirEntry, name: &str) -> bool {
+    name.starts_with('.')
+}
+
 pub(crate) fn read_entry(dir_entry: &fs::DirEntry) -> Option<Entry> {
     let name = dir_entry.file_name().to_string_lossy().into_owned();
     let file_type = dir_entry.file_type().ok()?;
@@ -228,7 +245,34 @@ pub(crate) fn sort_entries(entries: &mut [Entry]) {
 }
 
 /// Trilha de navegação: um item por nível, da raiz do disco até a pasta atual.
+/// No Android a trilha começa no armazenamento ("Armazenamento interno"), não em `/storage/emulated/0`.
 pub fn breadcrumbs(path: &Path) -> Vec<Crumb> {
+    match drives::volume_root(path) {
+        Some((root, label)) => breadcrumbs_under(path, &root, &label),
+        None => breadcrumbs_plain(path),
+    }
+}
+
+/// Trilha que começa na raiz de um armazenamento, com o nome dele no primeiro item.
+fn breadcrumbs_under(path: &Path, root: &Path, label: &str) -> Vec<Crumb> {
+    let mut crumbs = vec![Crumb {
+        name: label.to_owned(),
+        path: root.to_string_lossy().into_owned(),
+    }];
+    let mut current = root.to_path_buf();
+    if let Ok(rest) = path.strip_prefix(root) {
+        for part in rest.components() {
+            current.push(part);
+            crumbs.push(Crumb {
+                name: part.as_os_str().to_string_lossy().into_owned(),
+                path: current.to_string_lossy().into_owned(),
+            });
+        }
+    }
+    crumbs
+}
+
+fn breadcrumbs_plain(path: &Path) -> Vec<Crumb> {
     let mut ancestors: Vec<&Path> = path.ancestors().collect();
     ancestors.reverse();
     ancestors
@@ -267,9 +311,11 @@ pub fn list_dir(path: &Path) -> Result<Listing, BrowseError> {
     }
     sort_entries(&mut entries);
 
+    // A raiz de um armazenamento do Android é o topo: subir daqui volta para "Este computador".
+    let is_volume_root = drives::volume_root(path).is_some_and(|(root, _)| root == path);
     let parent = path
         .parent()
-        .filter(|p| !p.as_os_str().is_empty())
+        .filter(|p| !p.as_os_str().is_empty() && !is_volume_root)
         .map(|p| p.to_string_lossy().into_owned());
 
     Ok(Listing {
@@ -552,6 +598,31 @@ mod tests {
         let root = breadcrumbs(Path::new(r"D:\"));
         assert_eq!(root.len(), 1);
         assert_eq!(root[0].name, "D:");
+    }
+
+    #[test]
+    fn breadcrumbs_under_a_storage_start_at_its_name() {
+        let root = Path::new("/storage/emulated/0");
+        let path = root.join("DCIM").join("Camera");
+        let crumbs = breadcrumbs_under(&path, root, "Armazenamento interno");
+        let names: Vec<&str> = crumbs.iter().map(|c| c.name.as_str()).collect();
+        assert_eq!(names, ["Armazenamento interno", "DCIM", "Camera"]);
+        let expected = [
+            root.to_path_buf(),
+            root.join("DCIM"),
+            root.join("DCIM").join("Camera"),
+        ];
+        for (crumb, want) in crumbs.iter().zip(expected) {
+            assert_eq!(Path::new(&crumb.path), want);
+        }
+    }
+
+    #[test]
+    fn breadcrumbs_under_the_storage_root_have_a_single_item() {
+        let root = Path::new("/storage/1A2B-3C4D");
+        let crumbs = breadcrumbs_under(root, root, "Armazenamento removível 1A2B-3C4D");
+        assert_eq!(crumbs.len(), 1);
+        assert_eq!(Path::new(&crumbs[0].path), root);
     }
 
     #[test]

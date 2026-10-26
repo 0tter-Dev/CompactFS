@@ -5,6 +5,7 @@
 //! Consequência conhecida: o Windows guarda essas miniaturas no cache dele (`thumbcache`) da
 //! máquina que roda o app, como o Explorer já faz. O app não grava nada por conta própria.
 
+#[cfg(not(target_os = "android"))]
 use std::{
     path::{Path, PathBuf},
     sync::{mpsc, Condvar, LazyLock, Mutex},
@@ -14,11 +15,15 @@ use std::{
 
 use serde::Serialize;
 
+#[cfg(not(target_os = "android"))]
 pub const MIN_SIZE: u32 = 32;
+#[cfg(not(target_os = "android"))]
 pub const MAX_SIZE: u32 = 512;
 /// Extrações simultâneas: o suficiente para encher a tela rápido sem sufocar um HD lento.
+#[cfg(not(target_os = "android"))]
 const MAX_CONCURRENT: usize = 4;
 /// Tempo máximo por miniatura. Um extrator do sistema pode travar em arquivo ruim ou de rede.
+#[cfg(not(target_os = "android"))]
 pub const TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq)]
@@ -26,8 +31,10 @@ pub const TIMEOUT: Duration = Duration::from_secs(10);
 pub enum ThumbErrorCode {
     /// Sem miniatura para este tipo de arquivo (ou arquivo ilegível/corrompido).
     Unavailable,
+    #[cfg_attr(not(windows), allow(dead_code))]
     NotFound,
     /// O extrator do sistema demorou demais ou travou.
+    #[cfg_attr(target_os = "android", allow(dead_code))]
     Timeout,
     Other,
 }
@@ -67,6 +74,7 @@ pub fn encode(thumb: &Thumbnail) -> Vec<u8> {
 /// Converte BGRA (GDI) em RGBA. O alfa que o Windows devolve já é direto (não pré-multiplicado).
 /// Alguns extratores deixam o alfa todo zerado em imagens de 32 bits; sem tratar isso a miniatura
 /// ficaria invisível, então, nesse caso (e só nele), tudo vira opaco.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub fn bgra_to_rgba(mut px: Vec<u8>) -> Vec<u8> {
     let all_transparent = px.as_chunks::<4>().0.iter().all(|p| p[3] == 0);
     for p in px.as_chunks_mut::<4>().0 {
@@ -79,14 +87,17 @@ pub fn bgra_to_rgba(mut px: Vec<u8>) -> Vec<u8> {
 }
 
 /// Limita quantas extrações rodam ao mesmo tempo.
+#[cfg(not(target_os = "android"))]
 struct Limiter {
     in_use: Mutex<usize>,
     freed: Condvar,
     max: usize,
 }
 
+#[cfg(not(target_os = "android"))]
 struct Permit<'a>(&'a Limiter);
 
+#[cfg(not(target_os = "android"))]
 impl Limiter {
     const fn new(max: usize) -> Self {
         Self {
@@ -106,6 +117,7 @@ impl Limiter {
     }
 }
 
+#[cfg(not(target_os = "android"))]
 impl Drop for Permit<'_> {
     fn drop(&mut self) {
         let mut n = self.0.in_use.lock().unwrap_or_else(|e| e.into_inner());
@@ -114,10 +126,12 @@ impl Drop for Permit<'_> {
     }
 }
 
+#[cfg(not(target_os = "android"))]
 static LIMITER: LazyLock<Limiter> = LazyLock::new(|| Limiter::new(MAX_CONCURRENT));
 
 /// Roda `work` numa thread própria e espera no máximo `timeout`. Se estourar, a thread fica para
 /// trás (não há como interromper uma chamada de sistema), mas quem chamou não fica preso.
+#[cfg(not(target_os = "android"))]
 fn run_with_timeout<T: Send + 'static>(
     timeout: Duration,
     work: impl FnOnce() -> T + Send + 'static,
@@ -131,6 +145,7 @@ fn run_with_timeout<T: Send + 'static>(
 
 /// Miniatura de `path`, com `size` (lado máximo em pixels) entre `MIN_SIZE` e `MAX_SIZE`.
 /// Bloqueante: chame de uma thread de trabalho, nunca da thread principal.
+#[cfg(not(target_os = "android"))]
 pub fn thumbnail(path: &Path, size: u32) -> Result<Thumbnail, ThumbError> {
     let size = size.clamp(MIN_SIZE, MAX_SIZE);
     let path: PathBuf = path.to_path_buf();
@@ -268,7 +283,7 @@ mod platform {
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "android")))]
 mod platform {
     use super::{ThumbError, ThumbErrorCode, Thumbnail};
     use std::path::Path;

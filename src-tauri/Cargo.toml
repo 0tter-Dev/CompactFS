@@ -1,6 +1,6 @@
 [package]
 name = "compactfs"
-version = "0.0.0"
+version = "0.0.1"
 description = "CompactFS: visualizador leve de arquivos para discos portáteis"
 edition = "2021"
 license = "MIT"
@@ -21,6 +21,10 @@ serde = { version = "1", features = ["derive"] }
 [target.'cfg(windows)'.dependencies]
 webview2-com = "0.39"
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Storage_FileSystem", "Win32_System_Com", "Win32_System_Diagnostics_Debug", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+
+# Android: espaço livre dos armazenamentos (statvfs). Mesma versão que o Tauri já puxa, sem pacote novo no Cargo.lock.
+[target.'cfg(target_os = "android")'.dependencies]
+libc = "0.2"
 
 # Só para testes; não entram no executável.
 [dev-dependencies]

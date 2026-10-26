@@ -13,7 +13,9 @@ use tauri::{ipc::Channel, AppHandle, Builder, Manager, Runtime, State};
 mod address;
 mod browse;
 mod drives;
+mod media;
 mod search;
+mod storage;
 mod thumbs;
 mod viewer;
 #[cfg(windows)]
@@ -22,7 +24,9 @@ mod webview2;
 use address::Resolved;
 use browse::{BrowseError, ErrorCode, Listing};
 use drives::Drive;
+use media::PdfInfo;
 use search::{Query, SearchEvent, SearchSummary};
+use storage::StorageAccess;
 use thumbs::{ThumbError, ThumbErrorCode};
 use viewer::{TextContent, ViewError, ViewErrorCode};
 
@@ -79,6 +83,32 @@ async fn list_dir(path: String) -> Result<Listing, BrowseError> {
         })?
 }
 
+/// Se o app já tem o acesso a todos os arquivos (Android). Fora do Android não há o que pedir.
+#[tauri::command]
+async fn storage_access<R: Runtime>(app: AppHandle<R>) -> Result<StorageAccess, BrowseError> {
+    tauri::async_runtime::spawn_blocking(move || storage::status(&app))
+        .await
+        .map_err(|e| {
+            BrowseError::new(
+                ErrorCode::Other,
+                format!("Falha interna ao consultar o acesso: {e}"),
+            )
+        })?
+}
+
+/// Abre a tela do sistema onde o usuário concede o acesso a todos os arquivos (Android).
+#[tauri::command]
+async fn request_storage_access<R: Runtime>(app: AppHandle<R>) -> Result<(), BrowseError> {
+    tauri::async_runtime::spawn_blocking(move || storage::request(&app))
+        .await
+        .map_err(|e| {
+            BrowseError::new(
+                ErrorCode::Other,
+                format!("Falha interna ao pedir o acesso: {e}"),
+            )
+        })?
+}
+
 /// Diz para onde o texto digitado na barra de endereço aponta (pasta, arquivo ou "Este computador").
 /// Só consulta metadados; `base` é a pasta aberta, usada para caminhos relativos.
 #[tauri::command]
@@ -98,17 +128,60 @@ async fn resolve_path(input: String, base: Option<String>) -> Result<Resolved, B
 /// Miniatura de um arquivo, em binário: largura e altura (u32 little-endian) e depois o RGBA.
 /// Roda fora da thread principal; a extração é limitada em paralelismo e em tempo (ver `thumbs`).
 #[tauri::command]
-async fn thumbnail(path: String, size: u32) -> Result<tauri::ipc::Response, ThumbError> {
-    let thumb =
-        tauri::async_runtime::spawn_blocking(move || thumbs::thumbnail(Path::new(&path), size))
-            .await
-            .map_err(|e| {
-                ThumbError::new(
-                    ThumbErrorCode::Other,
-                    format!("Falha interna ao gerar a miniatura: {e}"),
-                )
-            })??;
+async fn thumbnail<R: Runtime>(
+    app: AppHandle<R>,
+    path: String,
+    size: u32,
+) -> Result<tauri::ipc::Response, ThumbError> {
+    let thumb = tauri::async_runtime::spawn_blocking(move || {
+        media::thumbnail(&app, Path::new(&path), size)
+    })
+    .await
+    .map_err(|e| {
+        ThumbError::new(
+            ThumbErrorCode::Other,
+            format!("Falha interna ao gerar a miniatura: {e}"),
+        )
+    })??;
     Ok(tauri::ipc::Response::new(thumbs::encode(&thumb)))
+}
+
+/// Páginas de um PDF quando o app mesmo as desenha (Android). `None` no Windows, onde o
+/// visualizador nativo do WebView2 mostra o PDF.
+#[tauri::command]
+async fn pdf_info<R: Runtime>(
+    app: AppHandle<R>,
+    path: String,
+) -> Result<Option<PdfInfo>, ViewError> {
+    tauri::async_runtime::spawn_blocking(move || media::pdf_info(&app, Path::new(&path)))
+        .await
+        .map_err(|e| {
+            ViewError::new(
+                ViewErrorCode::Other,
+                format!("Falha interna ao abrir o PDF: {e}"),
+            )
+        })?
+}
+
+/// Uma página do PDF em JPEG (binário). Só no Android.
+#[tauri::command]
+async fn pdf_page<R: Runtime>(
+    app: AppHandle<R>,
+    path: String,
+    page: u32,
+    width: u32,
+) -> Result<tauri::ipc::Response, ViewError> {
+    let jpeg = tauri::async_runtime::spawn_blocking(move || {
+        media::pdf_page(&app, Path::new(&path), page, width)
+    })
+    .await
+    .map_err(|e| {
+        ViewError::new(
+            ViewErrorCode::Other,
+            format!("Falha interna ao desenhar a página: {e}"),
+        )
+    })??;
+    Ok(tauri::ipc::Response::new(jpeg))
 }
 
 /// Libera o arquivo para o protocolo de arquivos (`asset:`), que alimenta imagem, vídeo, áudio e PDF.
@@ -140,15 +213,26 @@ async fn read_text(path: String) -> Result<TextContent, ViewError> {
 
 /// Abre o arquivo no app padrão do sistema (nunca programas, scripts, atalhos nem macros).
 #[tauri::command]
-async fn open_default(path: String) -> Result<(), ViewError> {
-    tauri::async_runtime::spawn_blocking(move || viewer::open_default(Path::new(&path)))
-        .await
-        .map_err(|e| {
-            ViewError::new(
-                ViewErrorCode::Other,
-                format!("Falha interna ao abrir o arquivo: {e}"),
-            )
-        })?
+async fn open_default<R: Runtime>(app: AppHandle<R>, path: String) -> Result<(), ViewError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        #[cfg(target_os = "android")]
+        {
+            viewer::check_openable(Path::new(&path))?;
+            storage::open_file(&app, Path::new(&path))
+        }
+        #[cfg(not(target_os = "android"))]
+        {
+            let _ = &app;
+            viewer::open_default(Path::new(&path))
+        }
+    })
+    .await
+    .map_err(|e| {
+        ViewError::new(
+            ViewErrorCode::Other,
+            format!("Falha interna ao abrir o arquivo: {e}"),
+        )
+    })?
 }
 
 /// Bandeira de cancelamento da busca em andamento (só existe uma por vez).
@@ -222,6 +306,8 @@ fn cancel_search(control: State<'_, SearchControl>) {
 /// Registra o estado e os comandos do app. Separado de `run()` para ser testável com o runtime de mock.
 #[doc(hidden)]
 pub fn configure<R: Runtime>(builder: Builder<R>, started_at: Instant) -> Builder<R> {
+    #[cfg(target_os = "android")]
+    let builder = builder.plugin(storage::init()).plugin(media::init());
     builder
         .manage(StartedAt(started_at))
         .manage(SearchControl::default())
@@ -235,10 +321,15 @@ pub fn configure<R: Runtime>(builder: Builder<R>, started_at: Instant) -> Builde
             read_text,
             open_default,
             search_names,
-            cancel_search
+            cancel_search,
+            storage_access,
+            request_storage_access,
+            pdf_info,
+            pdf_page
         ])
 }
 
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let started_at = Instant::now();
 

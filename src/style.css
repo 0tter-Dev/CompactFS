@@ -70,9 +70,37 @@ button:focus-visible,
   flex-wrap: wrap;
   align-items: center;
   gap: 4px;
-  padding: 6px 8px;
+  /* Margens do sistema (barra de status e recorte da tela no Android; valem 0 no Windows). */
+  padding: calc(6px + env(safe-area-inset-top, 0px)) calc(8px + env(safe-area-inset-right, 0px)) 6px
+    calc(8px + env(safe-area-inset-left, 0px));
   background: var(--bg-alt);
   border-bottom: 1px solid var(--border);
+}
+
+.access-banner {
+  flex: 1 1 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+  padding: 6px 10px;
+  background: var(--accent-bg);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.access-banner span {
+  flex: 1 1 auto;
+}
+
+.access-banner button {
+  flex: 0 0 auto;
+  padding: 4px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--bg);
+  cursor: pointer;
+  font-weight: 600;
 }
 
 .toolbar > button {
@@ -380,7 +408,9 @@ span.crumb {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  padding: 4px 12px;
+  /* Margens do sistema (barra de navegação do Android; valem 0 no Windows). */
+  padding: 4px calc(12px + env(safe-area-inset-right, 0px)) calc(4px + env(safe-area-inset-bottom, 0px))
+    calc(12px + env(safe-area-inset-left, 0px));
   font-size: 12px;
   color: var(--muted);
   background: var(--bg-alt);
@@ -505,6 +535,8 @@ span.crumb {
 .viewer {
   height: 100%;
   display: grid;
+  /* minmax(0, 1fr): sem isso a barra do visualizador alarga a página inteira em telas estreitas. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
   background: var(--bg);
   outline: none;
@@ -512,6 +544,7 @@ span.crumb {
 
 .viewer-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   padding: 6px 8px;
@@ -538,7 +571,7 @@ span.crumb {
 }
 
 .viewer-title {
-  flex: 1;
+  flex: 1 1 120px;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -638,6 +671,36 @@ span.crumb {
 
 .audio-player {
   width: min(560px, 90%);
+}
+
+.pdf-pages {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: var(--bg-alt);
+  outline: none;
+}
+
+.pdf-page {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  background: #fff;
+}
+
+.pdf-page canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.pdf-page-error {
+  outline: 2px solid var(--danger);
 }
 
 .pdf-frame {
@@ -862,4 +925,91 @@ span.crumb {
   margin-left: 0.5em;
   color: var(--muted);
   font-size: 12px;
+}
+
+
+/* ---------- telas estreitas e de toque ---------- */
+
+/* Em até 720 px a barra vira três linhas: navegação e modo de exibição; caminho; busca e ocultos. */
+@media (max-width: 720px) {
+  .toolbar > button {
+    order: 1;
+  }
+
+  .seg {
+    order: 2;
+    margin-left: auto;
+  }
+
+  #crumbs,
+  .address {
+    order: 3;
+    flex: 1 1 100%;
+    margin: 0;
+  }
+
+  .search {
+    order: 4;
+    flex: 1 1 140px;
+    width: auto;
+    min-width: 0;
+  }
+
+  .toggle {
+    order: 5;
+  }
+
+  .access-banner {
+    order: 6;
+  }
+
+  /* Só os símbolos de Galeria e Lista: o texto não cabe ao lado dos botões de navegação. */
+  .seg-text {
+    display: none;
+  }
+
+  /* Rodapé em duas linhas, em vez de cortar o texto da pasta. */
+  .status {
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+/* Dedo no lugar do mouse: alvos de pelo menos 44 px. */
+@media (pointer: coarse) {
+  .toolbar > button {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+
+  .seg button {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 18px;
+  }
+
+  #crumbs,
+  .address,
+  .search {
+    height: 44px;
+  }
+
+  .crumb {
+    padding: 8px 10px;
+  }
+
+  .toggle {
+    min-height: 44px;
+  }
+
+  .toggle input {
+    width: 22px;
+    height: 22px;
+  }
+
+  .viewer-bar button,
+  .access-banner button {
+    min-height: 44px;
+  }
 }

@@ -183,6 +183,9 @@ const BLOCKED_EXTENSIONS: &[&str] = &[
     "gadget",
     "jar",
     "apk",
+    "apks",
+    "xapk",
+    "apkm",
     // scripts e shells
     "bat",
     "cmd",
@@ -248,9 +251,8 @@ pub fn is_blocked_for_open(path: &Path) -> bool {
     }
 }
 
-/// Abre o arquivo no app padrão do sistema, sem confirmação (como um duplo clique no Explorer),
-/// exceto para os tipos bloqueados.
-pub fn open_default(path: &Path) -> Result<(), ViewError> {
+/// Verificações antes de abrir no app padrão: é um arquivo e não é de um tipo bloqueado.
+pub fn check_openable(path: &Path) -> Result<(), ViewError> {
     ensure_file(path)?;
     if is_blocked_for_open(path) {
         return Err(ViewError::new(
@@ -258,6 +260,14 @@ pub fn open_default(path: &Path) -> Result<(), ViewError> {
             "Este tipo de arquivo (programa, script, atalho ou documento com macros) não é aberto pelo CompactFS.",
         ));
     }
+    Ok(())
+}
+
+/// Abre o arquivo no app padrão do sistema, sem confirmação (como um duplo clique no Explorer),
+/// exceto para os tipos bloqueados. No Android quem abre é o plugin em Kotlin (ver `storage`).
+#[cfg_attr(target_os = "android", allow(dead_code))]
+pub fn open_default(path: &Path) -> Result<(), ViewError> {
+    check_openable(path)?;
     platform::open(path)
 }
 
@@ -299,6 +309,7 @@ mod platform {
     use super::{ViewError, ViewErrorCode};
     use std::path::Path;
 
+    #[cfg_attr(target_os = "android", allow(dead_code))]
     pub fn open(_path: &Path) -> Result<(), ViewError> {
         Err(ViewError::new(
             ViewErrorCode::Other,
@@ -471,6 +482,10 @@ mod tests {
             "dados.xlsb",
             "suplemento.xll",
             "show.ppsm",
+            "app.apk",
+            "pacote.XAPK",
+            "split.apks",
+            "store.apkm",
         ] {
             assert!(
                 is_blocked_for_open(Path::new(name)),

@@ -5,7 +5,9 @@ import {
   cancelSearch,
   listDrives,
   openDefault,
+  requestStorageAccess,
   searchNames,
+  storageAccess,
   toBrowseError,
   toViewError,
   type BrowseError,
@@ -17,10 +19,12 @@ import {
   type SearchEvent,
   type SearchSummary,
 } from "./api.ts";
+import { needsAccessPrompt } from "./access-model.ts";
 import { addressText, navigationTarget } from "./address-model.ts";
+import { driveTitle } from "./drive-model.ts";
 import { formatCount, formatDate, formatSize, joinPath, plural } from "./format.ts";
 import { Gallery } from "./gallery.ts";
-import { lastSegment, relativeDir, searchStatus, shouldAutoSearch } from "./search-model.ts";
+import { relativeDir, scopeName, searchStatus, shouldAutoSearch } from "./search-model.ts";
 import { ThumbLoader } from "./thumbs.ts";
 import { Viewer, type ViewerItem } from "./viewer.ts";
 import { viewerKindOf } from "./viewer-kind.ts";
@@ -54,6 +58,8 @@ const els = {
   up: $<HTMLButtonElement>("up"),
   refresh: $<HTMLButtonElement>("refresh"),
   crumbs: $<HTMLElement>("crumbs"),
+  accessBanner: $<HTMLElement>("access-banner"),
+  accessAllow: $<HTMLButtonElement>("access-allow"),
   address: $<HTMLInputElement>("address"),
   showHidden: $<HTMLInputElement>("show-hidden"),
   main: $<HTMLElement>("main"),
@@ -197,7 +203,10 @@ function updateNavButtons(): void {
   els.up.disabled = current === null || current.kind === "computer";
   const inFolder = current?.kind === "dir";
   els.search.disabled = !inFolder;
-  els.search.placeholder = inFolder ? "Buscar (Ctrl+F)" : "Abra uma pasta para buscar";
+  // No toque não há Ctrl+F, e o campo é estreito: o texto precisa caber.
+  const touch = window.matchMedia("(pointer: coarse)").matches;
+  els.search.placeholder = inFolder ? (touch ? "Buscar" : "Buscar (Ctrl+F)") : "Abra uma pasta";
+  els.search.title = inFolder ? "Buscar por nome nesta pasta e nas subpastas" : "Abra uma pasta para poder buscar";
 }
 
 // ---------- trilha de navegação ----------
@@ -319,10 +328,9 @@ function driveCard(d: Drive): HTMLElement {
 
   const body = document.createElement("span");
   body.className = "drive-body";
-  const letter = d.path.replace(/[\\/]+$/, "");
   const title = document.createElement("span");
   title.className = "drive-title";
-  title.textContent = d.label ? `${d.label} (${letter})` : letter;
+  title.textContent = driveTitle(d.path, d.label);
   const sub = document.createElement("span");
   sub.className = "drive-sub";
   body.append(title, sub);
@@ -722,7 +730,7 @@ function updateSearchBar(): void {
   }
   // Só o nome da pasta na faixa (o caminho completo vai no tooltip): um caminho longo empurrava os
   // botões para fora da janela.
-  els.searchInfo.textContent = `Busca em ${lastSegment(search.root)}`;
+  els.searchInfo.textContent = `Busca em ${scopeName(search.root, listing?.breadcrumbs ?? [])}`;
   els.searchInfo.title = search.root;
   const entry = visible[selected];
   els.searchWhere.textContent = entry?.dir
@@ -863,6 +871,32 @@ function searchShortcut(e: KeyboardEvent): boolean {
   }
   return false;
 }
+
+// ---------- acesso a todos os arquivos (Android) ----------
+
+let accessMissing = false;
+
+/** Mostra a faixa de pedido quando falta a permissão; ao ser concedida, recarrega o local atual. */
+async function refreshStorageAccess(): Promise<void> {
+  let missing: boolean;
+  try {
+    missing = needsAccessPrompt(await storageAccess());
+  } catch {
+    return; // sem a informação, não incomoda o usuário
+  }
+  els.accessBanner.hidden = !missing;
+  if (accessMissing && !missing) void refresh();
+  accessMissing = missing;
+}
+
+els.accessAllow.addEventListener("click", () => {
+  requestStorageAccess().catch((e) => flashStatus(toBrowseError(e).message));
+});
+// A tela de permissões do sistema devolve o foco ao app: é a hora de conferir de novo.
+window.addEventListener("focus", () => void refreshStorageAccess());
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") void refreshStorageAccess();
+});
 
 // ---------- eventos ----------
 
@@ -1028,3 +1062,4 @@ appInfo()
 
 applyViewMode();
 void go({ kind: "computer" });
+void refreshStorageAccess();
