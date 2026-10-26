@@ -13,6 +13,7 @@ use tauri::{ipc::Channel, AppHandle, Builder, Manager, Runtime, State};
 mod browse;
 mod drives;
 mod search;
+mod storage;
 mod thumbs;
 mod viewer;
 #[cfg(windows)]
@@ -21,6 +22,7 @@ mod webview2;
 use browse::{BrowseError, ErrorCode, Listing};
 use drives::Drive;
 use search::{Query, SearchEvent, SearchSummary};
+use storage::StorageAccess;
 use thumbs::{ThumbError, ThumbErrorCode};
 use viewer::{TextContent, ViewError, ViewErrorCode};
 
@@ -73,6 +75,32 @@ async fn list_dir(path: String) -> Result<Listing, BrowseError> {
             BrowseError::new(
                 ErrorCode::Other,
                 format!("Falha interna ao listar a pasta: {e}"),
+            )
+        })?
+}
+
+/// Se o app já tem o acesso a todos os arquivos (Android). Fora do Android não há o que pedir.
+#[tauri::command]
+async fn storage_access<R: Runtime>(app: AppHandle<R>) -> Result<StorageAccess, BrowseError> {
+    tauri::async_runtime::spawn_blocking(move || storage::status(&app))
+        .await
+        .map_err(|e| {
+            BrowseError::new(
+                ErrorCode::Other,
+                format!("Falha interna ao consultar o acesso: {e}"),
+            )
+        })?
+}
+
+/// Abre a tela do sistema onde o usuário concede o acesso a todos os arquivos (Android).
+#[tauri::command]
+async fn request_storage_access<R: Runtime>(app: AppHandle<R>) -> Result<(), BrowseError> {
+    tauri::async_runtime::spawn_blocking(move || storage::request(&app))
+        .await
+        .map_err(|e| {
+            BrowseError::new(
+                ErrorCode::Other,
+                format!("Falha interna ao pedir o acesso: {e}"),
             )
         })?
 }
@@ -204,6 +232,8 @@ fn cancel_search(control: State<'_, SearchControl>) {
 /// Registra o estado e os comandos do app. Separado de `run()` para ser testável com o runtime de mock.
 #[doc(hidden)]
 pub fn configure<R: Runtime>(builder: Builder<R>, started_at: Instant) -> Builder<R> {
+    #[cfg(target_os = "android")]
+    let builder = builder.plugin(storage::init());
     builder
         .manage(StartedAt(started_at))
         .manage(SearchControl::default())
@@ -216,7 +246,9 @@ pub fn configure<R: Runtime>(builder: Builder<R>, started_at: Instant) -> Builde
             read_text,
             open_default,
             search_names,
-            cancel_search
+            cancel_search,
+            storage_access,
+            request_storage_access
         ])
 }
 
