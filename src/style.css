@@ -926,3 +926,90 @@ span.crumb {
   color: var(--muted);
   font-size: 12px;
 }
+
+
+/* ---------- telas estreitas e de toque ---------- */
+
+/* Em até 720 px a barra vira três linhas: navegação e modo de exibição; caminho; busca e ocultos. */
+@media (max-width: 720px) {
+  .toolbar > button {
+    order: 1;
+  }
+
+  .seg {
+    order: 2;
+    margin-left: auto;
+  }
+
+  #crumbs,
+  .address {
+    order: 3;
+    flex: 1 1 100%;
+    margin: 0;
+  }
+
+  .search {
+    order: 4;
+    flex: 1 1 140px;
+    width: auto;
+    min-width: 0;
+  }
+
+  .toggle {
+    order: 5;
+  }
+
+  .access-banner {
+    order: 6;
+  }
+
+  /* Só os símbolos de Galeria e Lista: o texto não cabe ao lado dos botões de navegação. */
+  .seg-text {
+    display: none;
+  }
+
+  /* Rodapé em duas linhas, em vez de cortar o texto da pasta. */
+  .status {
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+/* Dedo no lugar do mouse: alvos de pelo menos 44 px. */
+@media (pointer: coarse) {
+  .toolbar > button {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+
+  .seg button {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 18px;
+  }
+
+  #crumbs,
+  .address,
+  .search {
+    height: 44px;
+  }
+
+  .crumb {
+    padding: 8px 10px;
+  }
+
+  .toggle {
+    min-height: 44px;
+  }
+
+  .toggle input {
+    width: 22px;
+    height: 22px;
+  }
+
+  .viewer-bar button,
+  .access-banner button {
+    min-height: 44px;
+  }
+}
