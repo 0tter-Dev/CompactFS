@@ -1,6 +1,7 @@
 import {
   appInfo,
   listDir,
+  resolvePath,
   cancelSearch,
   listDrives,
   openDefault,
@@ -14,10 +15,12 @@ import {
   type DriveKind,
   type Entry,
   type Listing,
+  type Resolved,
   type SearchEvent,
   type SearchSummary,
 } from "./api.ts";
 import { needsAccessPrompt } from "./access-model.ts";
+import { addressText, navigationTarget } from "./address-model.ts";
 import { driveTitle } from "./drive-model.ts";
 import { formatCount, formatDate, formatSize, joinPath, plural } from "./format.ts";
 import { Gallery } from "./gallery.ts";
@@ -57,6 +60,7 @@ const els = {
   crumbs: $<HTMLElement>("crumbs"),
   accessBanner: $<HTMLElement>("access-banner"),
   accessAllow: $<HTMLButtonElement>("access-allow"),
+  address: $<HTMLInputElement>("address"),
   showHidden: $<HTMLInputElement>("show-hidden"),
   main: $<HTMLElement>("main"),
   computer: $<HTMLElement>("computer"),
@@ -237,6 +241,55 @@ function renderCrumbs(): void {
   els.crumbs.replaceChildren(...parts);
   // Caminhos longos: o que importa é o fim (a pasta atual), então rola a trilha até lá.
   els.crumbs.scrollLeft = els.crumbs.scrollWidth;
+}
+
+// ---------- barra de endereço editável ----------
+
+let editingAddress = false;
+let committingAddress = false;
+
+/** Troca a trilha por um campo de texto com o caminho atual (Ctrl+L, F4, Alt+D ou clique num espaço vazio). */
+function beginAddressEdit(): void {
+  if (viewer.isOpen) return;
+  if (editingAddress) {
+    els.address.select();
+    return;
+  }
+  editingAddress = true;
+  els.address.value = addressText(current);
+  els.address.removeAttribute("aria-invalid");
+  els.crumbs.hidden = true;
+  els.address.hidden = false;
+  els.address.focus();
+  els.address.select();
+}
+
+function endAddressEdit(restoreFocus: boolean): void {
+  if (!editingAddress) return;
+  editingAddress = false;
+  els.address.hidden = true;
+  els.crumbs.hidden = false;
+  els.address.removeAttribute("aria-invalid");
+  if (restoreFocus) activeScroller().focus({ preventScroll: true });
+}
+
+async function commitAddress(): Promise<void> {
+  if (committingAddress) return;
+  committingAddress = true;
+  let resolved: Resolved;
+  try {
+    resolved = await resolvePath(els.address.value, current?.kind === "dir" ? current.path : null);
+  } catch (e) {
+    els.address.setAttribute("aria-invalid", "true");
+    flashStatus(toBrowseError(e).message);
+    els.address.focus();
+    return;
+  } finally {
+    committingAddress = false;
+  }
+  endAddressEdit(true);
+  const { place, selectName } = navigationTarget(resolved);
+  await go(place, { selectName });
 }
 
 // ---------- Este computador ----------
@@ -533,6 +586,7 @@ interface NavOptions {
 
 /** Carrega um local. Devolve `true` se a tela foi atualizada; respostas antigas são descartadas. */
 async function load(loc: Location, opts: NavOptions = {}): Promise<boolean> {
+  endAddressEdit(false);
   endSearch(false);
   const id = ++requestId;
   const timer = window.setTimeout(() => {
@@ -868,6 +922,24 @@ els.search.addEventListener("keydown", (e) => {
   }
 });
 
+els.crumbs.addEventListener("click", (e) => {
+  if (e.target === els.crumbs) beginAddressEdit();
+});
+
+els.address.addEventListener("input", () => els.address.removeAttribute("aria-invalid"));
+els.address.addEventListener("blur", () => {
+  if (!committingAddress) endAddressEdit(false);
+});
+els.address.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    void commitAddress();
+  } else if (e.key === "Escape") {
+    e.preventDefault();
+    endAddressEdit(true);
+  }
+});
+
 els.searchReveal.addEventListener("click", () => revealResult());
 els.searchClose.addEventListener("click", () => endSearch(true));
 
@@ -953,6 +1025,13 @@ document.addEventListener("keydown", (e) => {
   if (e.ctrlKey && !e.altKey && !e.metaKey && e.key.toLowerCase() === "f") {
     e.preventDefault();
     focusSearch();
+  } else if (
+    (e.ctrlKey && !e.altKey && !e.metaKey && e.key.toLowerCase() === "l") ||
+    (e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === "d") ||
+    e.key === "F4"
+  ) {
+    e.preventDefault();
+    beginAddressEdit();
   } else if (e.key === "F5") {
     e.preventDefault();
     void refresh();

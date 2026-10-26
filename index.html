@@ -11,7 +11,8 @@
       <button id="forward" type="button" title="Avançar (Alt+→)" aria-label="Avançar" disabled>→</button>
       <button id="up" type="button" title="Subir um nível (Backspace ou Alt+↑)" aria-label="Subir um nível" disabled>↑</button>
       <button id="refresh" type="button" title="Atualizar (F5)" aria-label="Atualizar">⟳</button>
-      <nav id="crumbs" aria-label="Caminho"></nav>
+      <nav id="crumbs" aria-label="Caminho" title="Clique num espaço vazio ou pressione Ctrl+L para digitar um caminho"></nav>
+      <input id="address" class="address" type="text" role="textbox" autocomplete="off" spellcheck="false" aria-label="Endereço: digite um caminho e pressione Enter" hidden />
       <input id="search" class="search" type="text" role="searchbox" autocomplete="off" spellcheck="false" placeholder="Buscar (Ctrl+F)" aria-label="Buscar por nome nesta pasta e nas subpastas" />
       <div class="seg" role="group" aria-label="Modo de exibição">
         <button id="view-grid" type="button" aria-pressed="true" title="Galeria (miniaturas)">▦ Galeria</button>

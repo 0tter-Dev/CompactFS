@@ -149,6 +149,16 @@ export const requestStorageAccess = (): Promise<void> => invoke<void>("request_s
 
 export const listDir = (path: string): Promise<Listing> => invoke<Listing>("list_dir", { path });
 
+/** Para onde o texto digitado na barra de endereço aponta (só consulta metadados). */
+export type Resolved =
+  | { kind: "computer" }
+  | { kind: "dir"; path: string }
+  | { kind: "file"; path: string; parent: string; name: string };
+
+/** `base` é a pasta aberta, usada só para caminhos relativos como `..\outra`. */
+export const resolvePath = (input: string, base: string | null): Promise<Resolved> =>
+  invoke<Resolved>("resolve_path", { input, base });
+
 /** O núcleo rejeita com `{ code, message }`; qualquer outra coisa vira um erro genérico. */
 export function toBrowseError(err: unknown): BrowseError {
   if (typeof err === "object" && err !== null && "message" in err) {

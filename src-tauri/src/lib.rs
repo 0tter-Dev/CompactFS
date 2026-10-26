@@ -10,6 +10,7 @@ use std::{
 use serde::Serialize;
 use tauri::{ipc::Channel, AppHandle, Builder, Manager, Runtime, State};
 
+mod address;
 mod browse;
 mod drives;
 mod media;
@@ -20,6 +21,7 @@ mod viewer;
 #[cfg(windows)]
 mod webview2;
 
+use address::Resolved;
 use browse::{BrowseError, ErrorCode, Listing};
 use drives::Drive;
 use media::PdfInfo;
@@ -105,6 +107,22 @@ async fn request_storage_access<R: Runtime>(app: AppHandle<R>) -> Result<(), Bro
                 format!("Falha interna ao pedir o acesso: {e}"),
             )
         })?
+}
+
+/// Diz para onde o texto digitado na barra de endereço aponta (pasta, arquivo ou "Este computador").
+/// Só consulta metadados; `base` é a pasta aberta, usada para caminhos relativos.
+#[tauri::command]
+async fn resolve_path(input: String, base: Option<String>) -> Result<Resolved, BrowseError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        address::resolve(&input, base.as_deref().map(Path::new))
+    })
+    .await
+    .map_err(|e| {
+        BrowseError::new(
+            ErrorCode::Other,
+            format!("Falha interna ao resolver o caminho: {e}"),
+        )
+    })?
 }
 
 /// Miniatura de um arquivo, em binário: largura e altura (u32 little-endian) e depois o RGBA.
@@ -286,6 +304,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>, started_at: Instant) -> Builde
             app_info,
             list_drives,
             list_dir,
+            resolve_path,
             thumbnail,
             allow_view,
             read_text,
